@@ -1,5 +1,6 @@
 # ===== 构建产物 =====
-# 根目录的成品 APK 允许上传；构建目录内的中间产物仍排除
+# 成品 APK 发布在 GitHub Releases，不入库
+*.apk
 套壳/.gradle/
 套壳/app/build/
 套壳/build/
