@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>ai.js 自检</title>
+<style>body{background:#0b0d10;color:#7CFC98;font:18px/1.5 Consolas,monospace;padding:16px;white-space:pre-wrap}</style>
+</head><body>
+<pre id="out">running…</pre>
+<script src="../assets/js/ai.js"></script>
+<script>
+var out = [], fail = 0;
+function log(s) { out.push(s); document.getElementById('out').textContent = out.join('\n'); }
+function ok(name, cond, extra) {
+  if (!cond) { fail++; }
+  log((cond ? '  PASS  ' : '  FAIL  ') + name + (extra ? '   → ' + extra : ''));
+}
+function ageGreeting(ms) {
+  localStorage.setItem('dash.ai.greet', JSON.stringify({ text: '旧问候', at: Date.now() - ms }));
+}
+
+(async function () {
+  log('=== 1. 接口地址归一化 ===');
+  ok('填到 /v1 会补全', AI.resolveUrl('https://api.deepseek.com/v1') === 'https://api.deepseek.com/v1/chat/completions');
+  ok('末尾斜杠会被吃掉', AI.resolveUrl('https://api.deepseek.com/v1/') === 'https://api.deepseek.com/v1/chat/completions');
+  ok('已写全就不再重复拼', AI.resolveUrl('https://x.cn/v1/chat/completions') === 'https://x.cn/v1/chat/completions');
+  ok('本地 Ollama 也能拼', AI.resolveUrl('http://127.0.0.1:11434/v1') === 'http://127.0.0.1:11434/v1/chat/completions');
+  ok('空值返回空', AI.resolveUrl('   ') === '');
+
+  log('\n=== 2. 上下文注入 ===');
+  AI.setContextProvider(function () {
+    return {
+      time: '14:32:45', period: '下午',
+      date: '2026年10月6日', week: '星期二', lunar: '农历八月廿六',
+      term: '寒露', festival: '国庆节', holiday: '国庆假期，第 6 天，还剩 2 天',
+      weather: {
+        city: '攀枝花', cond: '阴', temp: 20, feels: 21, hi: 24, lo: 18,
+        humidity: 75, windDir: '东风', windScale: '1级', aqiText: '良', uvText: '强',
+        sunrise: '07:07', sunset: '18:54'
+      },
+      forecast: '周三 26/18°，周四 27/17°',
+      battery: '72%（充电中）', net: '已连接'
+    };
+  });
+  var ctx = AI.buildContext();
+  ok('上下文块含时间', /时间：14:32:45/.test(ctx.block));
+  ok('上下文块含农历', /农历八月廿六/.test(ctx.block));
+  ok('上下文块含节气', /节气：寒露/.test(ctx.block));
+  ok('上下文块含天气', /攀枝花/.test(ctx.block) && /气温 20°C/.test(ctx.block));
+  ok('上下文块含电量', /72%/.test(ctx.block));
+  ok('变量表可替换 {{weather}}', ctx.vars.weather === '阴', ctx.vars.weather);
+  ok('变量表可替换 {{temp}}', ctx.vars.temp === '20°C', ctx.vars.temp);
+  ok('变量表可替换 {{holiday}}', /国庆假期/.test(ctx.vars.holiday));
+
+  log('\n=== 3. 问候语刷新时机 ===');
+  AI.setCfg({ greetMode: 'manual' });
+  AI.saveGreeting('现成的问候');
+  ok('手动模式：有缓存就不刷', AI.shouldRefreshGreeting() === false);
+  ok('手动模式：不排定时器', AI.nextGreetDelayMs() === 0);
+
+  AI.setCfg({ greetMode: 'interval', greetHours: 6 });
+  AI.saveGreeting('刚生成');
+  ok('间隔模式：刚生成不刷', AI.shouldRefreshGreeting() === false);
+  ageGreeting(7 * 3600 * 1000);
+  ok('间隔模式：超过 6 小时要刷', AI.shouldRefreshGreeting() === true);
+  ok('间隔模式：排的下次延迟约 6 小时',
+    Math.abs(AI.nextGreetDelayMs() - 6 * 3600 * 1000) < 5000);
+
+  AI.setCfg({ greetMode: 'hourly' });
+  AI.saveGreeting('本小时内');
+  ok('整点模式：同一小时不刷', AI.shouldRefreshGreeting() === false);
+  ageGreeting(2 * 3600 * 1000);
+  ok('整点模式：跨小时要刷', AI.shouldRefreshGreeting() === true);
+
+  AI.setCfg({ greetMode: 'morning' });
+  AI.saveGreeting('今天早上生成过');
+  var now = new Date(), fiveToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 5, 0, 0).getTime();
+  ok('早晨模式：5 点后生成过就不刷', AI.shouldRefreshGreeting() === (now.getTime() < fiveToday));
+  ageGreeting(30 * 3600 * 1000);
+  ok('早晨模式：昨天生成的要刷', now.getTime() < fiveToday ? AI.shouldRefreshGreeting() === false : AI.shouldRefreshGreeting() === true);
+
+  log('\n=== 4. 对话历史裁剪 ===');
+  AI.clearHistory();
+  AI.setCfg({ historyLimit: 4 });
+  for (var i = 1; i <= 9; i++) { AI.pushHistory(i % 2 ? 'user' : 'assistant', '第' + i + '条'); }
+  var h = AI.history();
+  ok('历史被裁到上限', h.length === 4, '实际 ' + h.length + ' 条');
+  ok('保留的是最近的', h[h.length - 1].content === '第9条', h[h.length - 1].content);
+  AI.clearHistory();
+  ok('可以清空', AI.history().length === 0);
+
+  log('\n=== 5. 没配 Key 时要说人话，而不是静默失败 ===');
+  AI.setCfg({ baseUrl: '', key: '', model: '' });
+  var r1 = await AI.test();
+  ok('测试连接返回失败', r1.ok === false);
+  ok('提示未填地址', /未填写 API 地址/.test(r1.msg), r1.msg);
+
+  AI.setCfg({ baseUrl: 'https://api.deepseek.com/v1' });
+  var r2 = await AI.test();
+  ok('提示未填 Key', /未填写 API Key/.test(r2.msg), r2.msg);
+
+  AI.setCfg({ key: 'sk-test' });
+  var r3 = await AI.test();
+  ok('提示未填模型', /未填写模型名称/.test(r3.msg), r3.msg);
+
+  var threw = '';
+  try { await AI.ask('你好'); } catch (e) { threw = e.message; }
+  ok('对话在未配置时抛错而不是空白', /模型名称/.test(threw), threw);
+
+  log('\n' + (fail === 0 ? '全部通过 ✓' : '有 ' + fail + ' 项失败 ✗'));
+  document.title = fail === 0 ? 'ALL PASS' : 'FAIL:' + fail;
+})();
+</script>
+</body></html>

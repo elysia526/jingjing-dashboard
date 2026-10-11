@@ -1,0 +1,80 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.tabletdash.app'
+    compileSdk 35
+    // 本机 build-tools 只有 34.0.0 与 36.0.0；AGP 8.7 默认想用 35.0.0（本地没有，
+    // 会触发联网下载），所以显式钉在 34.0.0 上。
+    buildToolsVersion '34.0.0'
+
+    defaultConfig {
+        applicationId 'com.tabletdash.app'
+        minSdk 29          // 酷比魔方 iPlay 20 Pro 是 Android 10
+        // targetSdk 故意停在 29：
+        //   1) 本应用只自用、不上应用商店，不涉及商店的 targetSdk 要求
+        //   2) targetSdk >= 30 时 WebView 会**忽略** setAllowUniversalAccessFromFileURLs，
+        //      而我们的第 2/3 步兜底要跑 file://，那一步需要它能发跨域请求（天气/AI）
+        //   3) 29 正好等于目标设备的系统版本，行为最可预期
+        targetSdk 29
+        versionCode 13
+        versionName '1.9.2'
+        resourceConfigurations += ['zh']   // 只保留中文资源，APK 小一点
+    }
+
+    signingConfigs {
+        // 个人自用，直接用调试密钥签；要发布再换成自己的 keystore。
+        release {
+            storeFile file(System.getProperty('user.home') + '/.android/debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix ''
+            minifyEnabled false
+        }
+        release {
+            minifyEnabled false
+            shrinkResources false
+            signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        // 刻意钉在 Java 8：AGP 只有在目标 Java 9+ 时才需要造 JDK 镜像（那步要 jlink），
+        // 而本机的两个 JBR 都是精简版、没有 jmods，跑不了 jlink。
+        // 这个壳只用匿名内部类，Java 8 完全够用。
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    // assets 里放网页；构建前由 工具/pack.js 生成单文件再拷进来
+    sourceSets {
+        main {
+            assets.srcDirs = ['src/main/assets']
+        }
+    }
+
+    packagingOptions {
+        resources.excludes += ['META-INF/*']
+    }
+
+    lint {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+}
+
+// 源码里有中文，必须显式声明 UTF-8
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+dependencies {
+    // 刻意留空：整个壳不依赖任何第三方库
+}

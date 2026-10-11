@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>计时器 / 闹钟 自检</title>
+<style>body{background:#0b0d10;color:#7CFC98;font:17px/1.5 Consolas,monospace;padding:16px}
+pre{white-space:pre-wrap}#f{width:1920px;height:1200px;border:0;position:absolute;left:-3000px;top:0}</style>
+</head><body>
+<iframe id="f" src="../index.html"></iframe>
+<pre id="out">running…</pre>
+<script>
+var out = [], fail = 0;
+function log(s) { out.push(s); document.getElementById('out').textContent = out.join('\n'); }
+function ok(name, cond, extra) {
+  if (!cond) { fail++; }
+  log((cond ? '  PASS  ' : '  FAIL  ') + name + (extra !== undefined ? '   → ' + extra : ''));
+}
+function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+var f = document.getElementById('f');
+f.onload = function () { setTimeout(function () { run().catch(function (e) { log('异常：' + e); post(); }); }, 1500); };
+
+async function run() {
+  var W = f.contentWindow, D = f.contentDocument;
+  var T = W.Timers, A = W.Alarms, R = W.Remind;
+  var BG = W.Background, AIC = W.AI;
+
+  if (!T || !A || !R) { log('模块没加载出来，检查 script 标签顺序'); document.title = 'FAIL:1'; post(); return; }
+
+  /* 停掉自动 tick，改由测试手动驱动 */
+  T.shutdown(); A.shutdown(); R.stop();
+
+  /* ---------------- 1. 时长解析 ---------------- */
+  log('=== 1. 自定义时长解析 ===');
+  ok('纯数字按秒', T.parseDur('90') === 90, T.parseDur('90'));
+  ok('分:秒', T.parseDur('1:30') === 90, T.parseDur('1:30'));
+  ok('时:分:秒', T.parseDur('1:02:30') === 3750, T.parseDur('1:02:30'));
+  ok('「5分」', T.parseDur('5分') === 300, T.parseDur('5分'));
+  ok('「2小时」', T.parseDur('2小时') === 7200, T.parseDur('2小时'));
+  ok('「45秒」', T.parseDur('45秒') === 45, T.parseDur('45秒'));
+  ok('空串 → 0', T.parseDur('') === 0);
+  ok('乱写 → 0', T.parseDur('abc') === 0);
+  log('=== 1b. 时长显示 ===');
+  ok('60 秒 → 1 分钟', T.humanSec(60) === '1 分钟', T.humanSec(60));
+  ok('3600 秒 → 1 小时', T.humanSec(3600) === '1 小时', T.humanSec(3600));
+  ok('90 秒 → 01:30', T.humanSec(90) === '01:30', T.humanSec(90));
+
+  /* ---------------- 2. 倒计时生命周期 ---------------- */
+  log('\n=== 2. 倒计时：建 / 停 / 继续 / 重置 ===');
+  T.list().forEach(function (t) { T.remove(t.id); });
+  function get(id) { return T.list().filter(function (x) { return x.id === id; })[0]; }
+
+  var id = T.addDown(60, '测试', false);
+  ok('刚建好是暂停的', get(id).running === false);
+  ok('剩余 = 总时长', get(id).remainMs === 60000, get(id).remainMs);
+
+  T.start(id);
+  ok('开始后 running', get(id).running === true);
+  ok('存的是结束时间戳而不是剩余秒数',
+    get(id).endAt > Date.now() + 55000 && get(id).endAt <= Date.now() + 61000,
+    'endAt-now = ' + Math.round((get(id).endAt - Date.now()) / 1000) + 's');
+
+  T.pause(id);
+  ok('暂停后 running=false', get(id).running === false);
+  ok('暂停后剩余仍接近 60 秒', get(id).remainMs > 58000 && get(id).remainMs <= 60000, get(id).remainMs);
+
+  T.start(id);
+  ok('继续后重新算出 endAt', get(id).running === true && get(id).endAt > Date.now());
+
+  T.reset(id);
+  ok('重置回满且停下', get(id).remainMs === 60000 && get(id).running === false);
+
+  /* ---------------- 3. 到点触发（模拟"页面被节流后恢复"）---------------- */
+  log('\n=== 3. 到点触发 ===');
+  T.start(id);
+  get(id).endAt = Date.now() - 1200;                 /* 手动拨到"已经过了 1.2 秒" */
+  var fired = T.catchUp();
+  ok('补上了错过的到点', fired === 1, 'fired=' + fired);
+  ok('标记为已结束且停下', get(id).doneAt > 0 && get(id).running === false);
+  ok('提醒浮层弹出来了', D.getElementById('remindModal').classList.contains('on'));
+  ok('提醒内容正确', D.getElementById('rdKind').textContent === '倒计时结束',
+    D.getElementById('rdKind').textContent + ' / ' + D.getElementById('rdTime').textContent);
+  R.stop();
+  ok('停止后浮层收起', !D.getElementById('remindModal').classList.contains('on'));
+
+  var cleared = T.clearFinished();
+  ok('一键清掉已结束的', cleared === 1 && T.list().length === 0, '清掉 ' + cleared);
+
+  /* ---------------- 4. 正计时 ---------------- */
+  log('\n=== 4. 正计时 ===');
+  var uid = T.addUp('秒表');
+  ok('新建即开始', get(uid).running === true && get(uid).startAt > 0);
+  T.pause(uid);
+  ok('暂停后累计进 accMs', get(uid).running === false && get(uid).accMs >= 0, get(uid).accMs + 'ms');
+  ok('正计时不会"结束"', T.valueOf(get(uid)).done === false);
+  T.reset(uid);
+  ok('重置归零', get(uid).accMs === 0 && get(uid).running === false);
+  T.remove(uid);
+  ok('删除生效', T.list().length === 0);
+
+  /* ---------------- 5. 常用时长 ---------------- */
+  log('\n=== 5. 常用时长增删 ===');
+  T.resetPresets();
+  var base = T.presets().length;
+  var pid = T.addPreset(120, '两分钟');
+  ok('新增成功', T.presets().length === base + 1, base + ' → ' + T.presets().length);
+  ok('按秒数排序', T.presets().every(function (p, i, a) { return i === 0 || a[i - 1].sec <= p.sec; }));
+  var pid2 = T.addPreset(120, '重复的');
+  ok('重复时长不重复添加', pid2 === pid && T.presets().length === base + 1);
+  T.removePreset(pid);
+  ok('删除成功', T.presets().length === base);
+
+  /* ---------------- 6. 闹钟：下次响铃计算 ---------------- */
+  log('\n=== 6. 闹钟下次响铃 ===');
+  A.list().forEach(function (a) { A.remove(a.id); });
+  function al(id) { return A.list().filter(function (x) { return x.id === id; })[0]; }
+  var now = new Date();
+
+  var a1 = A.add(23, 59, [], '单次');
+  var n1 = A.nextAt(al(a1), now);
+  ok('单次：落在未来 24 小时内', n1 && n1 > now && (n1 - now) < 86400000, n1 && n1.toLocaleString());
+
+  var a2 = A.add(0, 1, [0,1,2,3,4,5,6], '每天');
+  var n2 = A.nextAt(al(a2), now);
+  ok('每天：也是未来 24 小时内', n2 && (n2 - now) < 86400000);
+
+  var past = new Date(now.getTime() - 3600000);
+  var a3 = A.add(past.getHours(), past.getMinutes(), [1,2,3,4,5], '工作日');
+  var n3 = A.nextAt(al(a3), now);
+  ok('工作日：跳过今天已过的时刻', n3 && n3 > now, n3 && n3.toLocaleString());
+  ok('工作日：落在周一~周五', n3 && [1,2,3,4,5].indexOf(n3.getDay()) >= 0, n3 && n3.getDay());
+
+  var a4 = A.add(9, 0, [0,6], '周末');
+  var n4 = A.nextAt(al(a4), now);
+  ok('周末：落在周六或周日', n4 && [0,6].indexOf(n4.getDay()) >= 0, n4 && n4.getDay());
+
+  var a5 = A.add(12, 0, [0,1,2,3,4,5,6], '关掉的');
+  A.toggle(a5, 0);
+  ok('关掉的不参与下次响铃', A.nextAt(al(a5), now) === null);
+
+  log('=== 6b. 重复说明文字 ===');
+  function txt(days) {
+    var a = A.add(6, 0, days, 'x');
+    var s = A.daysText(al(a));
+    A.remove(a); return s;
+  }
+  ok('空 → 仅一次', txt([]) === '仅一次', txt([]));
+  ok('全选 → 每天', txt([0,1,2,3,4,5,6]) === '每天', txt([0,1,2,3,4,5,6]));
+  ok('1-5 → 工作日', txt([1,2,3,4,5]) === '工作日', txt([1,2,3,4,5]));
+  ok('0+6 → 周末', txt([0,6]) === '周末', txt([0,6]));
+  ok('1+3 → 周一 周三', txt([1,3]) === '周一 周三', txt([1,3]));
+
+  /* ---------------- 7. 闹钟触发与去重 ---------------- */
+  log('\n=== 7. 闹钟触发与去重 ===');
+  A.list().forEach(function (a) { A.remove(a.id); });
+  R.stop();
+  var cur = new Date();
+  var aid = A.add(cur.getHours(), cur.getMinutes(), [], '就现在');
+  var got = A.catchUp();
+  ok('5 分钟内的闹钟会补响', got === 1, '补响 ' + got);
+  ok('浮层出现且标题是闹钟', D.getElementById('rdKind').textContent === '闹钟',
+    D.getElementById('rdKind').textContent);
+  var again = A.catchUp();
+  ok('同一次不会被补响两遍', again === 0 && R.pending() === 0, 'again=' + again + ' 队列=' + R.pending());
+  ok('单次闹钟响完自动关闭', al(aid).on === 0);
+  ok('记录了 lastFired', !!al(aid).lastFired, al(aid).lastFired);
+  R.stop();
+  await sleep(700);            /* 等队列出队间隙走完 */
+
+  /* ---------------- 8. 提醒引擎：排队 / 通道 ---------------- */
+  log('\n=== 8. 提醒引擎 ===');
+  R.stop();
+  R.fire({ kind: 'timer', title: '第一条', sub: 'a', timeText: '01:00' });
+  ok('第一条直接响', R.isRinging() && R.current().title === '第一条');
+  R.fire({ kind: 'timer', title: '第二条', sub: 'b', timeText: '02:00' });
+  ok('第二条进队列而不是顶掉第一条',
+    R.current().title === '第一条' && R.pending() === 1,
+    '当前=' + R.current().title + ' 队列=' + R.pending());
+
+  log('=== 8b. 停止后队列自动接上 ===');
+  R.stop();
+  await sleep(800);
+  ok('队列里那条自己接上了', R.isRinging() && R.current().title === '第二条',
+    R.current() ? R.current().title : '(没有在响的)');
+  R.stop();
+  await sleep(700);
+
+  log('=== 8c. 响铃与震动都关掉时，浮层仍要出现 ===');
+  R.setCfg({ sound: 0, vibrate: 0 });
+  R.fire({ kind: 'timer', title: '静音测试', sub: '', timeText: '00:10' });
+  ok('浮层照样弹（它才是最兜底的那条通道）',
+    R.isRinging() && D.getElementById('remindModal').classList.contains('on'),
+    '在响=' + R.isRinging());
+  R.stop();
+  await sleep(700);
+
+  log('=== 8d. 贪睡 ===');
+  R.setCfg({ snoozeMin: 5 });
+  R.fire({ kind: 'alarm', title: '贪睡测试', sub: '', timeText: '06:00' });
+  R.snooze(1);
+  ok('贪睡后当前提醒先停掉', !R.isRinging());
+  ok('贪睡不会把自己排进队列', R.pending() === 0, '队列=' + R.pending());
+  R.setCfg({ sound: 1, vibrate: 1, volume: 70, tone: 'chime', snoozeMin: 5, fadeIn: 1, quietTimerVibeOnly: 0 });
+
+  /* ---------------- 9. 主设置开关 ---------------- */
+  log('\n=== 9. 主设置里的启用开关 ===');
+  T.setCfg({ enabled: 1 }); A.setCfg({ enabled: 1 });
+  /* ⚠ 必须看**计算样式**，不能只看 el.hidden 属性 ——
+     [hidden] 的 display:none 只是用户代理样式，作者写的 .tool-card{display:flex}
+     会把它盖掉：属性设上了，元素照样显示。这个 bug 就是这么漏过去的。 */
+  function disp(el) { return el ? W.getComputedStyle(el).display : '(没有这个元素)'; }
+
+  var offBtn = D.querySelector('[data-seg="timerOn"] button[data-val="0"]');
+  ok('找得到「计时器 关闭」按钮', !!offBtn);
+  if (offBtn) {
+    offBtn.click();
+    ok('关掉后 summary 变「已关闭」', T.summary().text === '已关闭', T.summary().text);
+    ok('关掉后入口卡片真的不显示了',
+      disp(D.getElementById('toolTimer')) === 'none', disp(D.getElementById('toolTimer')));
+    D.querySelector('[data-seg="timerOn"] button[data-val="1"]').click();
+    ok('重新打开后卡片回来', disp(D.getElementById('toolTimer')) !== 'none',
+      disp(D.getElementById('toolTimer')));
+    ok('重新打开后 summary 恢复', T.summary().text !== '已关闭', T.summary().text);
+  }
+  var alOff = D.querySelector('[data-seg="alarmOn"] button[data-val="0"]');
+  if (alOff) {
+    alOff.click();
+    ok('闹钟也能从主设置关掉', disp(D.getElementById('toolAlarm')) === 'none',
+      disp(D.getElementById('toolAlarm')));
+    D.querySelector('[data-seg="alarmOn"] button[data-val="1"]').click();
+    ok('闹钟重新打开', disp(D.getElementById('toolAlarm')) !== 'none');
+  }
+  /* 两个都关掉时，整行入口一起收起来 */
+  D.querySelector('[data-seg="timerOn"] button[data-val="0"]').click();
+  D.querySelector('[data-seg="alarmOn"] button[data-val="0"]').click();
+  ok('两个都关掉后整行入口也收起来', disp(D.getElementById('clockTools')) === 'none',
+    disp(D.getElementById('clockTools')));
+  D.querySelector('[data-seg="timerOn"] button[data-val="1"]').click();
+  D.querySelector('[data-seg="alarmOn"] button[data-val="1"]').click();
+  ok('恢复后整行入口回来', disp(D.getElementById('clockTools')) !== 'none');
+
+  /* ---------------- 9b. 主屏：倒计时在卡片上，正计时在右边条带上 ---------------- */
+  log('\n=== 9b. 主屏显示 ===');
+  T.list().forEach(function (x) { T.remove(x.id); });
+  var swBox = D.getElementById('clkStopwatches');
+  ok('没有正计时时条带是收起的', disp(swBox) === 'none', disp(swBox));
+
+  T.addUp('番茄钟');
+  ok('跑起秒表后条带出现', disp(swBox) !== 'none', disp(swBox));
+  var chips = swBox.querySelectorAll('.sw-chip');
+  ok('条带里有一个秒表', chips.length === 1, chips.length);
+  var names = Array.prototype.map.call(chips, function (c) {
+    return c.querySelector('.sw-name').textContent;
+  });
+  ok('条带上显示名称和读秒',
+    names.indexOf('番茄钟') >= 0 && /^\d{2}:\d{2}/.test(chips[0].querySelector('.sw-time').textContent),
+    names.join(',') + ' / ' + chips[0].querySelector('.sw-time').textContent);
+  ok('卡片摘要此时报个数（读秒在条带上，不重复占位）',
+    /正计时/.test(T.summary().text), T.summary().text);
+
+  T.addUp('第二个'); T.addUp('第三个'); T.addUp('第四个');
+  ok('多个秒表都进条带，超过 3 个显示 +N',
+    swBox.querySelectorAll('.sw-chip').length === 4 && !!swBox.querySelector('.sw-chip.more'),
+    swBox.querySelectorAll('.sw-chip').length + ' 个块');
+
+  T.addDown(120, '倒计时', true);
+  ok('有倒计时时卡片显示剩余时间', /^\d{2}:\d{2}/.test(T.summary().text), T.summary().text);
+  ok('倒计时和正计时同时存在时条带仍在', disp(swBox) !== 'none');
+
+  T.list().forEach(function (x) { T.remove(x.id); });
+  ok('清空后条带收起', disp(swBox) === 'none', disp(swBox));
+
+  /* ---------------- 9c. 正计时模式要藏掉倒计时的自定义时长 ---------------- */
+  log('\n=== 9c. 正计时模式的自定义时长 ===');
+  T.setUiKind('down');
+  var addRow = D.querySelector('#timerModal .tm-add');
+  ok('倒计时模式下「自定义时长」可见', disp(addRow) !== 'none', disp(addRow));
+  T.setUiKind('up');
+  ok('切到正计时后「自定义时长」隐藏', disp(addRow) === 'none', disp(addRow));
+  ok('标题也从「常用计时器」换成「新建」',
+    D.getElementById('tmPresetLabel').textContent === '新建',
+    D.getElementById('tmPresetLabel').textContent);
+  T.setUiKind('down');
+  ok('切回倒计时又出现', disp(addRow) !== 'none', disp(addRow));
+
+  /* ---------------- 9e. 样式兜底（这几条都真踩过）---------------- */
+  log('\n=== 9e. 样式兜底 ===');
+
+  /* <button> 不写 background 会露出 UA 的 ButtonFace（深色主题下是浅灰/白），
+     白字压上去就看不见了。这个坑踩过三次，加了一条全局兜底规则。 */
+  var probe = D.createElement('button');
+  D.body.appendChild(probe);
+  var pbg = W.getComputedStyle(probe).backgroundColor;
+  ok('裸 <button> 也不会露出 UA 默认底色',
+    pbg === 'rgba(0, 0, 0, 0)' || pbg === 'transparent', pbg);
+  probe.remove();
+
+  T.setUiKind('down');
+  var presetAdd = D.querySelector('#tmPresets .tm-preset.add');
+  ok('「＋ 自定义」按钮在', !!presetAdd);
+  if (presetAdd) {
+    var pbg2 = W.getComputedStyle(presetAdd).backgroundColor;
+    ok('它没有实心底色', pbg2 === 'rgba(0, 0, 0, 0)', pbg2);
+  }
+  var setCat = D.querySelector('.set-cat');
+  ok('设置分类行也没有实心底色',
+    !setCat || W.getComputedStyle(setCat).backgroundColor === 'rgba(0, 0, 0, 0)');
+
+  /* 弹层右上角的关闭 × 是绝对定位的，头部得给它留位置，
+     不然「倒计时 / 正计时」切换会钻到它底下 */
+  var head = D.querySelector('#timerModal .tm-head');
+  var padR = head ? parseFloat(W.getComputedStyle(head).paddingRight) : 0;
+  ok('弹层头部给关闭按钮留了位置', padR > 10, padR + 'px');
+
+  /* ---------------- 9d. 夜间只震动的默认值 ---------------- */
+  log('\n=== 9d. 夜间只震动的默认值 ===');
+  ok('默认必须是「关」——否则过了 18:00 倒计时会突然不响',
+    R.defaults.quietTimerVibeOnly === 0, R.defaults.quietTimerVibeOnly);
+
+  /* ---------------- 10. 数据落盘 ---------------- */
+  log('\n=== 10. 落盘 ===');
+  T.list().forEach(function (x) { T.remove(x.id); });
+  T.addDown(300, '落盘测试', false);
+  var raw = JSON.parse(localStorage.getItem('dash.timers.list') || '[]');
+  ok('计时器写进了 localStorage', raw.length === 1 && raw[0].label === '落盘测试', raw.length + ' 条');
+  A.list().forEach(function (a) { A.remove(a.id); });
+  A.add(6, 30, [1,2,3,4,5], '落盘闹钟');
+  var raw2 = JSON.parse(localStorage.getItem('dash.alarms.list') || '[]');
+  ok('闹钟写进了 localStorage', raw2.length === 1 && raw2[0].label === '落盘闹钟', raw2.length + ' 条');
+  ok('提醒配置有键', !!localStorage.getItem('dash.remind.cfg'));
+
+  /* ---------------- 11. 老配置迁移（v1 → v2）---------------- */
+  log('\n=== 11. 老配置迁移 ===');
+  localStorage.setItem('dash.remind.cfg', JSON.stringify({
+    sound: 1, vibrate: 1, notify: 0, tone: 'chime', volume: 70,
+    snoozeMin: 5, fadeIn: 1,
+    quietTimerVibeOnly: 1        /* v1 写下的旧默认值，且整份配置没有 _v 标记 */
+  }));
+  var f2 = D.createElement('iframe');
+  f2.src = 'index.html';
+  f2.style.cssText = 'width:800px;height:600px;position:absolute;left:-4000px;top:0';
+  D.body.appendChild(f2);
+  await new Promise(function (res) {
+    f2.onload = function () { setTimeout(res, 1300); };
+    setTimeout(res, 4000);      /* 兜底，别把整个测试挂死 */
+  });
+  try {
+    var C2 = f2.contentWindow.Remind.cfg;
+    ok('老配置里的 quietTimerVibeOnly=1 被纠正成 0', C2.quietTimerVibeOnly === 0, C2.quietTimerVibeOnly);
+    ok('迁移后打上了 _v 标记', +C2._v >= 2, C2._v);
+    ok('其它项原样保留', C2.sound === 1 && C2.tone === 'chime' && C2.volume === 70);
+  } catch (e) {
+    ok('能读到第二个实例的配置', false, e);
+  }
+  f2.remove();
+
+  /* ---------------- 12. 设置：一级分类 → 二级页 ---------------- */
+  log('\n=== 12. 设置分类导航 ===');
+  function visiblePages() {
+    return Array.prototype.filter.call(
+      D.querySelectorAll('#setBody .set-page'),
+      function (el) { return W.getComputedStyle(el).display !== 'none'; }
+    ).map(function (el) { return el.getAttribute('data-page'); });
+  }
+  var cats = D.querySelectorAll('#setBody .set-cat');
+  ok('分类列表在', !!D.querySelector('#setBody .set-page[data-page="home"]'));
+  ok('一共 8 个分类', cats.length === 8, cats.length);
+  ok('默认只显示分类列表', visiblePages().join(',') === 'home', visiblePages().join(','));
+  ok('返回按钮默认藏着', D.getElementById('setBack').hidden === true);
+
+  cats[2].click();                                   /* 天气 */
+  ok('点分类进到二级页', visiblePages().join(',') === 'weather', visiblePages().join(','));
+  ok('标题变成分类名', D.getElementById('setTitle').textContent === '天气',
+    D.getElementById('setTitle').textContent);
+  ok('返回按钮出现了', disp(D.getElementById('setBack')) !== 'none');
+
+  D.getElementById('setBack').click();
+  ok('返回回到分类列表', visiblePages().join(',') === 'home', visiblePages().join(','));
+
+  var catVals = Array.prototype.map.call(D.querySelectorAll('[data-cat]'), function (el) {
+    return el.getAttribute('data-cat') + '=' + el.textContent;
+  });
+  ok('每个分类右侧都有当前值摘要',
+    catVals.length === 8 && catVals.every(function (s) { return s.split('=')[1].length > 0; }),
+    catVals.join(' | '));
+
+  /* 关键：控件只是被藏起来，DOM 必须还在，否则绑定和 sync 全废 */
+  var probes = ['[data-seg="provider"]', '#aiKey', '[data-seg="rdTone"]',
+                '#burnAmp', '#bgPick', '[data-field="feels"]', '#rdAudioFile'];
+  var missing = probes.filter(function (s) { return !D.querySelector(s); });
+  ok('二级页里的控件都还在 DOM 里', missing.length === 0,
+    missing.length ? ('缺了 ' + missing.join(', ')) : ('抽查 ' + probes.length + ' 个，全在'));
+
+  /* ---------------- 13. 内置背景图 + 人设 ---------------- */
+  log('\n=== 13. 内置资源 ===');
+
+  /* 内置图是异步种的，先等一会儿 */
+  for (var wi = 0; wi < 80; wi++) {
+    if (BG.list().some(function (m) { return m.id.indexOf('bi_') === 0; })) { break; }
+    await sleep(100);
+  }
+  var bi = BG.list().filter(function (m) { return m.id.indexOf('bi_') === 0; });
+  ok('内置背景图已经种进背景库', bi.length === 1, bi.length + ' 张');
+  ok('名字正确', !!bi[0] && bi[0].name.indexOf('光斑') >= 0, bi[0] && bi[0].name);
+  ok('和普通图片同等待遇（有尺寸和大小）',
+    !!bi[0] && bi[0].w > 0 && bi[0].bytes > 0,
+    bi[0] && (bi[0].w + '×' + bi[0].h + ' ' + Math.round(bi[0].bytes / 1024) + ' KB'));
+  ok('种完自动把背景模式切成图片', BG.cfg.mode === 'image', BG.cfg.mode);
+  var bth = bi[0] ? await BG.getThumb(bi[0].id) : '';
+  ok('缩略图生成了', (bth || '').indexOf('data:image') === 0, (bth || '').length + ' 字符');
+  ok('内置图可以删除（走的是同一套 removeItem）', typeof BG.removeItem === 'function');
+
+  log('=== 13b. 人设 ===');
+  ok('人设默认关闭', AIC.cfg.personaOn === 0, AIC.cfg.personaOn);
+  var ps = AIC.personas();
+  ok('内置人设已种入', ps.length >= 2, ps.length + ' 个：' + ps.map(function (p) { return p.name; }).join('、'));
+  var dy = AIC.personaById('dafeiyu');
+  ok('「DeepSeek 大肥鱼」在里面', !!dy && dy.name === 'DeepSeek 大肥鱼', dy && dy.name);
+  ok('大肥鱼提示词有实质内容', !!dy && dy.prompt.length > 200, dy && dy.prompt.length + ' 字符');
+  ok('默认没选中任何人设', !AIC.cfg.personaId, AIC.cfg.personaId);
+  ok('没开人设时系统提示词里没有人设', AIC.chatSystemPrompt().indexOf('大肥鱼') < 0);
+
+  AIC.setCfg({ personaId: 'dafeiyu', personaOn: 1 });
+  ok('开了之后对话提示词带上了人设', AIC.chatSystemPrompt().indexOf('大肥鱼') >= 0);
+  ok('问候语提示词也带上了', AIC.greetSystemPrompt().indexOf('大肥鱼') >= 0);
+  ok('基础提示词没被顶掉（是追加不是替换）',
+    AIC.chatSystemPrompt().indexOf('直接给结论') >= 0);
+  ok('人设排在基础提示词之后', (function () {
+    var s = AIC.chatSystemPrompt();
+    return s.indexOf('直接给结论') < s.indexOf('【人设：');
+  })());
+  AIC.setCfg({ personaId: '', personaOn: 0 });
+
+  var nid = AIC.addPersona('测试人设', '说话要押韵。');
+  ok('另存为新人生效', AIC.personas().length === ps.length + 1, AIC.personas().length);
+  AIC.setCfg({ personaId: nid, personaOn: 1 });
+  ok('新人设也能拼进去', AIC.chatSystemPrompt().indexOf('押韵') >= 0);
+  AIC.updatePersona(nid, { prompt: '说话要押韵，而且只用五言。' });
+  ok('改内容能存下来', AIC.personaById(nid).prompt.indexOf('五言') >= 0);
+  AIC.removePersona(nid);
+  ok('删除人设生效', !AIC.personaById(nid) && AIC.personas().length === ps.length);
+  ok('删掉正在用的那个会自动关掉人设', AIC.cfg.personaOn === 0 && !AIC.cfg.personaId,
+    'on=' + AIC.cfg.personaOn + ' id=' + AIC.cfg.personaId);
+
+  /* ---------------- 14. 二次启动不能弄丢背景图（v1.9 真事故）---------------- */
+  log('\n=== 14. 二次启动回归 ===');
+  var cntBefore = BG.list().length;
+  ok('第一次启动后库里有图', cntBefore >= 1, cntBefore + ' 张');
+
+  async function launch() {
+    var fr = D.createElement('iframe');
+    fr.src = 'index.html';
+    fr.style.cssText = 'width:800px;height:600px;position:absolute;left:-4000px;top:0';
+    D.body.appendChild(fr);
+    await new Promise(function (res) {
+      fr.onload = function () { setTimeout(res, 2600); };
+      setTimeout(res, 8000);                       /* 兜底 */
+    });
+    return { m: fr.contentWindow.Background, el: fr };
+  }
+
+  /* 事故还原：start() 是先 refresh() 再开存储的，第二次启动时图在 IndexedDB 里、
+     而那一刻 idb 还是 null → 读不到 → 被判成幽灵条目连元数据一起删掉。 */
+  var L2 = await launch();
+  var l2 = L2.m.list();
+  ok('第二次启动后背景图还在', l2.length >= cntBefore, l2.length + ' 张（上次 ' + cntBefore + '）');
+  ok('内置图没被当成幽灵条目删掉',
+    l2.some(function (x) { return x.id.indexOf('bi_') === 0; }),
+    l2.map(function (x) { return x.id; }).join(', ') || '(空)');
+  var d2 = await L2.m.getData('bi_summer-light');
+  ok('第二次启动后图片数据仍可读', (d2 || '').indexOf('data:image') === 0, (d2 || '').length + ' 字符');
+  L2.el.remove();
+
+  /* 自愈：把元数据抹掉（模拟换 origin / 崩溃导致的数据丢失），
+     再启动应该自动补种回来 —— 而不是像 v1.9 那样一次丢了就永远没了。 */
+  localStorage.setItem('dash.bg.meta', '[]');
+  var L3 = await launch();
+  var l3 = L3.m.list();
+  ok('元数据丢了也能自动补种回来',
+    l3.some(function (x) { return x.id.indexOf('bi_') === 0; }),
+    l3.map(function (x) { return x.id; }).join(', ') || '(空)');
+  L3.el.remove();
+
+  /* 收尾：把测试数据清干净，免得污染截图 / 真机 */
+  T.list().forEach(function (x) { T.remove(x.id); });
+  A.list().forEach(function (a) { A.remove(a.id); });
+  T.resetPresets();
+  R.stop();
+
+  log('\n' + (fail === 0 ? '全部通过 ✓' : '有 ' + fail + ' 项失败 ✗'));
+  document.title = fail === 0 ? 'ALL PASS' : 'FAIL:' + fail;
+  post();
+}
+
+function post() {
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    try { fetch('/__result', { method: 'POST', body: encodeURIComponent(out.join('\n')) }); } catch (e) {}
+  }
+}
+</script>
+</body></html>

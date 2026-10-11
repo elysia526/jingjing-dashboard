@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>AI 内置预设自检</title>
+<style>body{background:#0b0d10;color:#7CFC98;font:18px/1.5 Consolas,monospace;padding:16px;white-space:pre-wrap}</style>
+</head><body>
+<pre id="out">running…</pre>
+
+<!-- 刻意用假 Key：这个测试永远不会打到真接口，也不含任何真实凭据 -->
+<script>
+  /* 条件一：模拟"分享版注入了内置预设" */
+  window.DASH_PRESET = {
+    ai: {
+      enabled: 1,
+      baseUrl: 'https://apihub.agnes-ai.com/v1',
+      key: 'sk-PROBE-NOT-A-REAL-KEY',
+      model: 'agnes-3.0-flash',
+      greetMode: 'interval',
+      greetHours: 8,
+      maxTokens: 240,
+      temperature: 1.1
+    }
+  };
+  /* 条件二：模拟"用户曾经打开过、但把地址清空了"——应回落内置预设 */
+  localStorage.setItem('dash.ai.cfg', JSON.stringify({
+    baseUrl: '', key: '', model: '', enabled: 1, temperature: 1.1
+  }));
+</script>
+<script src="../assets/js/ai.js"></script>
+<script>
+var out = [], fail = 0;
+function log(s) { out.push(s); document.getElementById('out').textContent = out.join('\n'); }
+function ok(name, cond, extra) {
+  if (!cond) { fail++; }
+  log((cond ? '  PASS  ' : '  FAIL  ') + name + (extra ? '   → ' + extra : ''));
+}
+
+log('=== 1. 预设被识别 ===');
+ok('hasPreset = true', AI.hasPreset === true);
+ok('preset.model 读到了', AI.preset.model === 'agnes-3.0-flash', AI.preset.model);
+
+log('\n=== 2. 空配置自动回落到内置预设 ===');
+ok('baseUrl 回落', AI.cfg.baseUrl === 'https://apihub.agnes-ai.com/v1', AI.cfg.baseUrl);
+ok('key 回落', AI.cfg.key === 'sk-PROBE-NOT-A-REAL-KEY');
+ok('model 回落', AI.cfg.model === 'agnes-3.0-flash', AI.cfg.model);
+ok('enabled 生效', AI.cfg.enabled === 1);
+
+log('\n=== 3. 预设里的其它参数也生效 ===');
+ok('greetHours 用预设的 8', AI.cfg.greetHours === 8, AI.cfg.greetHours);
+ok('maxTokens 用预设的 240', AI.cfg.maxTokens === 240, AI.cfg.maxTokens);
+ok('greetMode 用预设的 interval', AI.cfg.greetMode === 'interval', AI.cfg.greetMode);
+
+log('\n=== 4. 拼出来的请求地址正确 ===');
+ok('补全 /chat/completions',
+  AI.resolveUrl(AI.cfg.baseUrl) === 'https://apihub.agnes-ai.com/v1/chat/completions',
+  AI.resolveUrl(AI.cfg.baseUrl));
+
+log('\n=== 5. 其它默认值没被污染 ===');
+ok('温度仍是 1.1', +AI.cfg.temperature === 1.1);
+ok('流式默认开', AI.cfg.stream === 1);
+ok('超时仍是 45 秒', AI.cfg.timeoutSec === 45);
+ok('历史条数仍是 12', AI.cfg.historyLimit === 12);
+ok('系统提示词非空', (AI.cfg.prompt || '').length > 20);
+ok('内置预设不含 temperature 时用默认', AI.defaults.temperature === 1.1);
+
+log('\n=== 6. 用户在界面上填自己的 Key 会覆盖预设 ===');
+AI.setCfg({ baseUrl: 'https://my-own.example/v1', key: 'sk-mine', model: 'my-model' });
+ok('地址被覆盖', AI.cfg.baseUrl === 'https://my-own.example/v1');
+ok('Key 被覆盖', AI.cfg.key === 'sk-mine');
+var saved = JSON.parse(localStorage.getItem('dash.ai.cfg'));
+ok('覆盖后已落盘', saved.baseUrl === 'https://my-own.example/v1' && saved.model === 'my-model');
+
+log('\n' + (fail === 0 ? '全部通过 ✓' : '有 ' + fail + ' 项失败 ✗'));
+log('（本页全程未发起任何网络请求）');
+document.title = fail === 0 ? 'ALL PASS' : 'FAIL:' + fail;
+</script>
+</body></html>

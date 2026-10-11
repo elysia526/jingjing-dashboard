@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- 无标题栏 + 全屏；背景先铺深色，避免 WebView 起来前闪白。
+         parent 必须是 **Light** 系：WebView 的原生表单控件（复选框、滑块、
+         时间框、文件按钮）是跟着壳的主题走的。用 Theme.Material（深色）时
+         它们全被画成黑块——设置里"自定义字段"的勾选框就成了一坨黑底，勾没勾
+         根本看不出来。windowBackground 仍单独钉成深色，防闪白的效果不变。 -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">#FF121417</item>
+        <item name="android:colorBackground">#FF121417</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowContentTransitions">false</item>
+    </style>
+
+</resources>

@@ -1,0 +1,104 @@
+/* ============================================================================
+ * legacy.css — 给老 WebView 补间距（仅在检测到不支持 flex gap 时生效）
+ * ----------------------------------------------------------------------------
+ * 背景：酷比魔方 iPlay 20 Pro 的系统 WebView 是 **Chrome 74**（2019-04）。
+ * flex 容器的 gap 属性要到 **Chrome 84** 才支持，在那之前它会被整个忽略，
+ * 所有 flex 子元素会紧挨在一起，排版全挤成一团。
+ *
+ * 为什么单独一张文件、而不是直接改原 CSS：
+ *   · 原 CSS 不动，新浏览器上行为完全一致
+ *   · 只有在 app.js 检测到不支持 flex gap 时，才给 <html> 加 .no-flexgap
+ *   · 补丁集中在这一处，将来去留都方便
+ *
+ * 用法：gap: Npx（横向） 等价于  > * + * { margin-left: Npx }
+ *       gap: Npx（纵向） 等价于  > * + * { margin-top: Npx }
+ *       只对元素生效，纯文本节点需要单独写规则。
+ * ==========================================================================*/
+
+/* ---------------------------------------------------------------- base.css */
+
+.no-flexgap .sun-cell > * + * { margin-left: 8px; }
+
+.no-flexgap .drawer-tools > * + * { margin-left: 6px; }
+
+.no-flexgap .controls > * + * { margin-left: 6px; }
+
+.no-flexgap .set-row > * + * { margin-left: 16px; }
+/* 竖排的设置行要覆盖掉上面那条横排的左间距 */
+.no-flexgap .set-row-col > * + * { margin-left: 0; margin-top: 10px; }
+
+/* 会自动换行的勾选区：容器用负 margin 抵消每行第一个的左边距 */
+.no-flexgap .checks { margin-left: -22px; margin-top: -12px; }
+.no-flexgap .checks > * { margin-left: 22px; margin-top: 12px; }
+/* 复选框和文字之间是"元素 + 文本节点"，> * + * 抓不到，单独给 */
+.no-flexgap .checks label input { margin-right: 8px; }
+
+.no-flexgap .city-item > * + * { margin-top: 2px; }
+
+.no-flexgap .bg-list > * + * { margin-top: 10px; }
+
+.no-flexgap .bg-item > * + * { margin-left: 12px; }
+
+.no-flexgap .seg-time > * + * { margin-left: 14px; }
+.no-flexgap .seg-time label input { margin-left: 6px; }
+
+/* ----------------------------------------------------------- theme-light.css */
+
+.no-flexgap[data-theme="light"] .clock-meta > * + * { margin-left: 24px; }
+.no-flexgap[data-theme="light"] .w-mid > * + * { margin-left: 34px; }
+.no-flexgap[data-theme="light"] .cal-cell > * + * { margin-top: 3px; }
+.no-flexgap[data-theme="light"] .side-batt > * + * { margin-left: 16px; }
+
+/* ------------------------------------------------------------ theme-dark.css */
+
+.no-flexgap[data-theme="dark"] .clk-block-end > * + * { margin-top: 26px; }
+.no-flexgap[data-theme="dark"] .clock-meta > * + * { margin-top: 16px; }
+.no-flexgap[data-theme="dark"] .meta-row > * + * { margin-left: 14px; }
+.no-flexgap[data-theme="dark"] .clock-battery > * + * { margin-left: 16px; }
+.no-flexgap[data-theme="dark"] .clk-sun > * + * { margin-left: 44px; }
+.no-flexgap[data-theme="dark"] .clk-sun .sun-cell > * + * { margin-left: 12px; }
+.no-flexgap[data-theme="dark"] .w-mid > * + * { margin-left: 22px; }
+.no-flexgap[data-theme="dark"] .w-mid .w-cond > * + * { margin-left: 10px; }
+.no-flexgap[data-theme="dark"] .cal-cell > * + * { margin-top: 4px; }
+.no-flexgap[data-theme="dark"] .status-item > * + * { margin-left: 12px; }
+
+/* 注：.metric / .cal-grid / .cal-week / .cal-head / #stage 用的是 **grid** 的 gap，
+   grid gap 从 Chrome 57 就支持，不需要补。 */
+
+/* ============================================================================
+ * 计时器 / 闹钟 / 提醒（v1.7）—— flex gap 降级
+ * Chrome 74 不支持 flex 容器的 gap，选项会全部挤在一起。
+ * 规则同上面那批：横排用 > * + * 补左边距，会自动换行的用负 margin 抵消行首。
+ * ==========================================================================*/
+
+.no-flexgap .clk-tools > * + * { margin-left: calc(16 * var(--u)); }
+.no-flexgap .tool-card > * + * { margin-left: calc(14 * var(--u)); }
+.no-flexgap .tm-head > * + * { margin-left: calc(20 * var(--u)); }
+.no-flexgap .tm-item > * + * { margin-left: calc(16 * var(--u)); }
+.no-flexgap .tm-btns > * + * { margin-left: calc(8 * var(--u)); }
+.no-flexgap .al-item > * + * { margin-left: calc(16 * var(--u)); }
+.no-flexgap .al-right > * + * { margin-left: calc(12 * var(--u)); }
+.no-flexgap .al-time-input > * + * { margin-left: calc(10 * var(--u)); }
+.no-flexgap .rd-actions > * + * { margin-left: calc(18 * var(--u)); }
+
+/* 会换行的：容器负 margin 抵消每行第一个的边距 */
+.no-flexgap .seg-wrap { margin-left: calc(-8 * var(--u)); margin-top: calc(-8 * var(--u)); }
+.no-flexgap .seg-wrap > * { margin-left: calc(8 * var(--u)); margin-top: calc(8 * var(--u)); }
+
+.no-flexgap .tm-preset-row { margin-left: calc(-10 * var(--u)); margin-top: calc(-10 * var(--u)); }
+.no-flexgap .tm-preset-row > * { margin-left: calc(10 * var(--u)); margin-top: calc(10 * var(--u)); }
+
+.no-flexgap .al-quick, .no-flexgap .al-days { margin-left: calc(-10 * var(--u)); margin-top: calc(6 * var(--u)); }
+.no-flexgap .al-quick > *, .no-flexgap .al-days > * {
+  margin-left: calc(10 * var(--u)); margin-top: calc(10 * var(--u));
+}
+
+/* 正计时条带（v1.7 补充）。会换行的容器只走"负 margin 抵消"这一套，
+   不要再叠一条 > * + * —— 那样每行第一个会被算两遍边距。 */
+.no-flexgap .clk-sw { margin-left: calc(-12 * var(--u)); margin-top: calc(-12 * var(--u)); }
+.no-flexgap .clk-sw > * { margin-left: calc(12 * var(--u)); margin-top: calc(12 * var(--u)); }
+
+/* 人设选择（v1.9 补充）。会换行的容器只走"负 margin 抵消"这一套 */
+.no-flexgap .persona-list { margin-left: calc(-10 * var(--u)); margin-top: calc(-10 * var(--u)); }
+.no-flexgap .persona-list > * { margin-left: calc(10 * var(--u)); margin-top: calc(10 * var(--u)); }
+.no-flexgap .persona-ops > * + * { margin-left: calc(12 * var(--u)); }

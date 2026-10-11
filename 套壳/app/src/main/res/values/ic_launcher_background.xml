@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 自适应图标的背景色。取自鲸鲸本身的平均色 #8292BB 的同色系浅调，
+     既衬得住白色的女仆头饰，也能让深色描边清晰地分离出来。 -->
+<resources>
+    <color name="ic_launcher_background">#CFE0F5</color>
+</resources>

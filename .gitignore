@@ -1,0 +1,19 @@
+# ===== 构建产物 =====
+*.apk
+套壳/.gradle/
+套壳/app/build/
+套壳/build/
+套壳/local.properties
+*.iml
+.gradle/
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# ===== WorkBuddy 本地数据 =====
+.workbuddy/
+.workbuddy-ai/

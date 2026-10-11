@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">鲸鲸仪表板</string>
+    <string name="notif_channel">常驻服务</string>
+    <string name="notif_title">鲸鲸仪表板正在常驻</string>
+    <string name="notif_text">开机自启与崩溃自恢复已开启，点此回到仪表板</string>
+</resources>

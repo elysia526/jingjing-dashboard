@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>weather.js 自检</title>
+<style>
+body{background:#0b0d10;color:#7CFC98;font:18px/1.5 Consolas,monospace;padding:16px;white-space:pre-wrap}
+.bad{color:#ff6b6b}
+</style></head><body>
+<pre id="out">running…</pre>
+<script src="../assets/js/weather.js"></script>
+<script>
+var out = [], fail = 0;
+function log(s) { out.push(s); document.getElementById('out').textContent = out.join('\n'); }
+function ok(name, cond, extra) {
+  if (!cond) { fail++; }
+  log((cond ? '  PASS  ' : '  FAIL  ') + name + (extra ? '   → ' + extra : ''));
+}
+
+/* 造一份两小时前的缓存 */
+var seed = {
+  city: '攀枝花', cond: '阴', icon: 'cloud', temp: 19, feels: 21, hi: 24, lo: 18,
+  humidity: 80, humidityPct: 80, windDir: '东风', windScale: '1级', windPct: 8,
+  aqi: 62, aqiText: '良', aqiPct: 69, uv: 7, uvText: '强', uvPct: 64,
+  sunrise: '07:07', sunset: '18:54',
+  forecast: [{ date: '2026-10-07', w: '周三', hi: 26, lo: 18, cond: '阴', icon: 'cloud' }],
+  updatedAt: Date.now() - 7200000, source: 'open-meteo', fromCache: false
+};
+
+(async function () {
+  log('=== 1. 单位换算 ===');
+  ok('uvText(0)=弱', Weather.uvText(0) === '弱');
+  ok('uvText(7)=强', Weather.uvText(7) === '强');
+  ok('uvText(11)=极强', Weather.uvText(11) === '极强');
+  ok('aqiText(62)=良', Weather.aqiText(62) === '良');
+  ok('aqiText(180)=中度污染', Weather.aqiText(180) === '中度污染');
+  ok('iconOf(雷阵雨)=thunder', Weather.iconOf('雷阵雨') === 'thunder');
+  ok('iconOf(小雪)=snow', Weather.iconOf('小雪') === 'snow');
+
+  log('\n=== 2. 新鲜缓存：不该发请求 ===');
+  Weather.setCfg({ refreshHours: 4 });
+  Weather.writeCache(seed);
+  window.fetch = function () { throw new Error('本用例不应该联网'); };
+  var a = await Weather.refresh({ force: false });
+  ok('返回缓存', a.fromCache === true);
+  ok('标记为新鲜', a.fresh === true, 'fresh=' + a.fresh);
+  ok('温度取自缓存', a.temp === 19, a.temp + '°');
+
+  log('\n=== 3. 强制刷新 + 断网：回退缓存并给出失败原因 ===');
+  window.fetch = function () { return Promise.reject(new Error('模拟断网')); };
+  var b = await Weather.refresh({ force: true });
+  ok('回退到缓存', b.fromCache === true && b.temp === 19);
+  ok('带出错误原因', /模拟断网/.test(b.error || ''), b.error);
+  ok('缓存时间仍是两小时前', Date.now() - b.updatedAt >= 7000000);
+
+  log('\n=== 4. 无缓存 + 断网：用内置兜底，界面不至于空白 ===');
+  try { localStorage.removeItem('dash.weather.cache'); } catch (e) {}
+  var c = await Weather.refresh({ force: true });
+  ok('命中内置兜底', c.source === 'mock', 'source=' + c.source);
+  ok('仍有可用温度', typeof c.temp === 'number' && c.temp > -50, c.temp + '°');
+  ok('仍有预报数组', Array.isArray(c.forecast) && c.forecast.length >= 3, c.forecast.length + ' 天');
+
+  log('\n=== 5. 配置持久化 ===');
+  Weather.setCfg({ days: 7, refreshHours: 1, fields: { feels: 0, hiLo: 1, humidity: 1, wind: 0, aqi: 1, uv: 0, sun: 1, forecast: 1 } });
+  var raw = JSON.parse(localStorage.getItem('dash.weather.cfg'));
+  ok('days 已存盘', raw.days === 7, 'days=' + raw.days);
+  ok('字段开关已存盘', raw.fields.wind === 0 && raw.fields.aqi === 1);
+  ok('缺省字段已补齐', raw.fields.forecast === 1);
+
+  log('\n=== 6. 和风缺 Key 时应明确报错而不是静默失败 ===');
+  Weather.setCfg({ provider: 'qweather', host: '', key: '' });
+  var d = await Weather.testConnection();
+  ok('测试连接返回失败', d.ok === false);
+  ok('错误信息可读', /未填写/.test(d.msg), d.msg);
+
+  log('\n' + (fail === 0 ? '全部通过 ✓' : '有 ' + fail + ' 项失败 ✗'));
+  document.title = fail === 0 ? 'ALL PASS' : 'FAIL:' + fail;
+})();
+</script>
+</body></html>

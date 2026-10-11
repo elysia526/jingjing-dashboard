@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<title>生成示例背景</title>
+<style>
+body{background:#0b0d10;color:#7CFC98;font:18px/1.6 Consolas,monospace;padding:18px;white-space:pre-wrap}
+b{color:#F0A52B}
+</style></head><body>
+<pre id="out">正在生成…</pre>
+<script src="../assets/js/background.js"></script>
+<script>
+/* 这个页面用来"一键造两张示例背景"塞进浏览器本地存储，
+   方便先看看图片背景跑起来是什么效果。看完随时可以清空。 */
+var out = [];
+function log(s) { out.push(s); document.getElementById('out').textContent = out.join('\n'); }
+
+function makeFile(name, c1, c2, decorate) {
+  var W = 2400, H = 1600;
+  var c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  var g = c.getContext('2d');
+  var grd = g.createLinearGradient(0, 0, W, H);
+  grd.addColorStop(0, c1);
+  grd.addColorStop(0.55, c2);
+  grd.addColorStop(1, '#ffffff');
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  decorate(g, W, H);
+  return new Promise(function (res) {
+    c.toBlob(function (b) { res(new File([b], name, { type: 'image/jpeg' })); }, 'image/jpeg', 0.92);
+  });
+}
+
+function dayScene(g, W, H) {
+  g.globalAlpha = 0.5;
+  for (var i = 0; i < 60; i++) {
+    g.fillStyle = 'rgba(255,255,255,' + (0.05 + (i % 5) * 0.06) + ')';
+    g.beginPath();
+    g.arc(Math.random() * W, Math.random() * H * 0.8, 80 + Math.random() * 260, 0, Math.PI * 2);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+  g.fillStyle = 'rgba(255,236,200,.85)';
+  g.beginPath(); g.arc(W * 0.78, H * 0.22, 150, 0, Math.PI * 2); g.fill();
+}
+
+function nightScene(g, W, H) {
+  g.globalAlpha = 0.65;
+  for (var i = 0; i < 220; i++) {
+    g.fillStyle = 'rgba(255,255,255,' + (0.15 + Math.random() * 0.7) + ')';
+    g.beginPath(); g.arc(Math.random() * W, Math.random() * H * 0.7, Math.random() * 2.6, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+  var gg = g.createLinearGradient(0, H * 0.6, 0, H);
+  gg.addColorStop(0, 'rgba(20,26,44,0)');
+  gg.addColorStop(1, 'rgba(6,8,14,.95)');
+  g.fillStyle = gg; g.fillRect(0, H * 0.6, W, H * 0.4);
+}
+
+(async function () {
+  log('清空已有背景…');
+  Background.clearAll();
+
+  var f1 = await makeFile('清晨.jpg', '#1e4b8f', '#f0b455', dayScene);
+  var f2 = await makeFile('夜色.jpg', '#070b14', '#3b2a53', nightScene);
+
+  var r = await Background.addFiles([f1, f2]);
+  log('导入 ' + r.added.length + ' 张，失败 ' + r.failed.length + ' 张，占用 ' +
+    (r.used / 1024).toFixed(0) + ' KB');
+
+  var m = Background.list();
+  if (m.length >= 2) {
+    Background.setSlot(m[0].id, 'day');
+    Background.setSlot(m[1].id, 'night');
+  }
+  Background.setCfg({ mode: 'image', blur: 8, veilLight: 78, veilDark: 42, intervalSec: 300 });
+
+  log('');
+  log('搞定。现在直接双击打开 ' + '<b>index.html</b>' + ' 就能看到图片背景了。');
+  log('清晨图分给了「白天」，夜色图分给了「夜间」，到点会自动换。');
+  log('想撤掉：仪表板右上角齿轮 → 背景 → 清空全部背景。');
+  log('');
+  log('当前时段 = ' + Background.currentSlot() + '，可用 ' + Background.candidates().length + ' 张');
+})();
+</script>
+</body></html>

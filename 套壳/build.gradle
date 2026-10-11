@@ -1,0 +1,5 @@
+// 顶层构建文件。壳里不引任何第三方依赖（连 androidx 都不用），
+// 所以这里只有 AGP 一个插件。
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}

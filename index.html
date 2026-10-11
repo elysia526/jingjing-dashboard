@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>鲸鲸仪表板</title>
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/legacy.css">
+<link rel="stylesheet" href="assets/css/theme-light.css">
+<link rel="stylesheet" href="assets/css/theme-dark.css">
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- ================================================== 背景层 ===== -->
+    <div id="bg" aria-hidden="true">
+      <div class="bg-img" id="bgA"></div>
+      <div class="bg-img" id="bgB"></div>
+      <div class="bg-veil"></div>
+    </div>
+
+    <!-- ================================================== 时钟 ======= -->
+    <section class="mod mod-clock">
+      <div class="clk-block">
+        <div class="clock">
+          <span class="t-hm" id="tHm">--:--</span><span class="t-s" id="tS">:--</span><span class="t-ap" id="tAp"></span>
+        </div>
+      </div>
+
+      <div class="clk-hr only-dark"></div>
+
+      <div class="clk-block">
+        <div class="clock-meta">
+          <div class="meta-row">
+            <span class="m-week" id="mWeek">星期一</span>
+            <span class="m-week-en only-dark" id="mWeekEn">MONDAY</span>
+            <span class="m-dot only-light">·</span>
+          </div>
+          <div class="meta-row">
+            <span class="m-date" id="mDate">1月1日</span>
+            <span class="m-lunar" id="mLunar">农历正月初一</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="clk-hr only-dark"></div>
+
+      <div class="clk-block clk-block-end">
+        <div class="clock-battery only-dark">
+          <svg class="batt-icon" viewBox="0 0 64 28" fill="none" aria-hidden="true">
+            <rect x="1" y="1" width="54" height="26" rx="4" stroke="currentColor" stroke-width="2"/>
+            <rect x="58.5" y="9" width="4.5" height="10" rx="1.5" fill="currentColor"/>
+            <rect class="batt-fill" x="4.5" y="4.5" width="0" height="19" rx="2" fill="currentColor"/>
+          </svg>
+          <span class="batt-pct" data-batt-pct>--%</span>
+          <span class="batt-state" data-batt-state>未充电</span>
+        </div>
+
+        <div class="clk-sun only-dark" id="clkSun"></div>
+      </div>
+
+      <!-- 计时器 / 闹钟入口。两个主题的时钟模块里都有一块空白，就落在这儿；
+           点开是详情面板，布局与「点日历格看日程」那套一致。 -->
+      <div class="clk-tools" id="clockTools">
+        <button class="tool-card" id="toolTimer" type="button" title="打开计时器">
+          <span class="tc-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="13.6" r="7.4"/>
+              <path d="M12 10.2v3.6l2.5 1.5"/>
+              <path d="M9.7 2.6h4.6M18.4 6.4l1.6-1.6"/>
+            </svg>
+          </span>
+          <span class="tc-body">
+            <span class="tc-name">计时器</span>
+            <span class="tc-val" data-timer-val>未启用</span>
+          </span>
+        </button>
+
+        <button class="tool-card" id="toolAlarm" type="button" title="打开闹钟">
+          <span class="tc-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="13.2" r="7"/>
+              <path d="M12 10v3.3l2.3 1.4"/>
+              <path d="M3.7 7.5 6.5 4.3M20.3 7.5 17.5 4.3"/>
+              <path d="M4.8 19.5 6.4 17.9M19.2 19.5 17.6 17.9"/>
+            </svg>
+          </span>
+          <span class="tc-body">
+            <span class="tc-name">闹钟</span>
+            <span class="tc-val" data-alarm-val>未启用</span>
+          </span>
+        </button>
+
+        <!-- 正在跑的正计时单独放右边：可能有多个，每个都要看读秒 -->
+        <div class="clk-sw" id="clkStopwatches" hidden></div>
+      </div>
+    </section>
+
+    <!-- ================================================== 天气 ======= -->
+    <section class="mod mod-weather">
+      <div class="w-head"><span class="w-city" id="wCity">攀枝花</span></div>
+
+      <div class="w-mid">
+        <span class="w-cond">
+          <svg class="w-icon" id="wIcon" viewBox="0 0 48 48" fill="none" stroke="currentColor"
+               stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+          <span class="w-cond-text" id="wCondText">晴</span>
+        </span>
+        <span class="w-temp"><span id="wTemp">--</span><span class="deg">°</span><span class="unit">C</span></span>
+      </div>
+
+      <div class="w-hilo" id="wHiLo"></div>
+      <div class="w-lines" id="wLines"></div>
+      <div class="w-sun" id="wSun"></div>
+      <div class="w-forecast" id="wForecast"></div>
+      <div class="w-chart" id="wChart"></div>
+      <div class="w-metrics" id="wMetrics"></div>
+      <div class="w-meta" id="wMeta"></div>
+    </section>
+
+    <!-- ================================================== 月历 ======= -->
+    <section class="mod mod-calendar">
+      <header class="cal-head">
+        <h2 class="cal-title" id="calTitle">----年--月</h2>
+        <div class="cal-nav">
+          <button class="nav-btn" data-cal="prev" title="上个月（←）">‹</button>
+          <button class="nav-btn nav-today" data-cal="today" title="回到今天（T）">今天</button>
+          <button class="nav-btn" data-cal="next" title="下个月（→）">›</button>
+        </div>
+      </header>
+      <div class="cal-week">
+        <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-foot"><span id="calHoliday"></span></div>
+    </section>
+
+    <!-- ============================================ 状态栏 / 侧栏 ===== -->
+    <section class="mod mod-side">
+      <div class="side-batt only-light">
+        <svg class="batt-icon" viewBox="0 0 64 28" fill="none" aria-hidden="true">
+          <rect x="1" y="1" width="54" height="26" rx="4" stroke="currentColor" stroke-width="2"/>
+          <rect x="58.5" y="9" width="4.5" height="10" rx="1.5" fill="currentColor"/>
+          <rect class="batt-fill" x="4.5" y="4.5" width="0" height="19" rx="2" fill="currentColor"/>
+        </svg>
+        <span class="batt-pct" data-batt-pct>--%</span>
+        <span class="batt-state" data-batt-state>未充电</span>
+      </div>
+
+      <div class="side-store only-light">存储 <span class="v" data-store>--%</span><span class="side-sep">·</span>平板温度 <span class="v" data-temp>--</span></div>
+
+      <div class="side-rule only-light"></div>
+
+      <div class="status-items only-dark">
+        <div class="status-item">
+          <svg viewBox="0 0 40 30" fill="none" stroke="currentColor"
+               stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 11.5a24.5 24.5 0 0 1 32 0"/>
+            <path d="M11 18.5a14.2 14.2 0 0 1 18 0"/>
+            <circle cx="20" cy="25.4" r="1.7" fill="currentColor" stroke="none"/>
+          </svg>
+          <span class="k" data-net>已连接</span>
+        </div>
+        <div class="status-item">
+          <span class="k">存储</span><span class="v" data-store>--%</span>
+        </div>
+        <div class="status-item">
+          <span class="k">平板温度</span><span class="v" data-temp>--</span>
+        </div>
+      </div>
+
+      <div class="side-greeting" id="greetingBox">
+        <div class="g-label only-light">今日</div>
+        <div class="g-text" data-greeting>正在准备问候语…</div>
+        <div class="g-ctx only-light"></div>
+        <div class="g-hint only-light">点击问候语展开对话</div>
+      </div>
+
+      <div class="side-rule-2 only-light"></div>
+      <div class="side-holiday only-light" data-holiday-label></div>
+    </section>
+
+    <!-- ================================================== 覆盖层 ===== -->
+    <div id="dim" aria-hidden="true"></div>
+    <div class="overlay" id="overlay"></div>
+
+    <!-- 对话抽屉 -->
+    <aside class="drawer" id="chatDrawer" aria-hidden="true">
+      <div class="drawer-head">
+        <span class="drawer-title">对话</span>
+        <span class="drawer-tools">
+          <button class="icon-btn icon-btn-sm" id="chatClear" title="清空对话">清空</button>
+          <button class="icon-btn" data-close="chatDrawer" title="关闭">×</button>
+        </span>
+      </div>
+      <div class="drawer-body" id="chatBody"></div>
+      <div class="drawer-foot">
+        <div class="chat-input">
+          <input id="chatInput" type="text" placeholder="说点什么…（Enter 发送）" autocomplete="off">
+          <button id="chatSend">发送</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 设置抽屉 -->
+    <aside class="drawer" id="settingsDrawer" aria-hidden="true">
+      <div class="drawer-head">
+        <span class="drawer-title">
+          <button class="set-back" id="setBack" type="button" hidden title="返回分类">‹</button>
+          <span id="setTitle">设置</span>
+        </span>
+        <button class="icon-btn" data-close="settingsDrawer" title="关闭">×</button>
+      </div>
+      <div class="drawer-body" id="setBody">
+
+        <!-- ============ 一级：分类列表 ============ -->
+        <div class="set-page on" data-page="home">
+          <p class="set-hint">点分类进去调。所有改动即时生效，自动存在本机。</p>
+          <button class="set-cat" data-go="appearance" type="button">
+            <span class="cat-name">外观与主题</span>
+            <span class="cat-val" data-cat="appearance"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="screen" type="button">
+            <span class="cat-name">屏幕与防烧屏</span>
+            <span class="cat-val" data-cat="screen"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="weather" type="button">
+            <span class="cat-name">天气</span>
+            <span class="cat-val" data-cat="weather"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="background" type="button">
+            <span class="cat-name">背景</span>
+            <span class="cat-val" data-cat="background"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="clock" type="button">
+            <span class="cat-name">计时器与闹钟</span>
+            <span class="cat-val" data-cat="clock"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="remind" type="button">
+            <span class="cat-name">提醒方式</span>
+            <span class="cat-val" data-cat="remind"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="ai" type="button">
+            <span class="cat-name">AI 问候与对话</span>
+            <span class="cat-val" data-cat="ai"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+          <button class="set-cat" data-go="data" type="button">
+            <span class="cat-name">数据与系统</span>
+            <span class="cat-val" data-cat="data"></span>
+            <span class="cat-arrow" aria-hidden="true">›</span>
+          </button>
+        </div>
+
+        <!-- ============ 二级：appearance ============ -->
+        <div class="set-page" data-page="appearance">
+          <div class="set-row">
+            <span>主题</span>
+            <div class="seg" data-seg="theme">
+              <button data-val="light">浅色极简编辑网格</button>
+              <button data-val="dark">深色精密数据看板</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>时间制式</span>
+            <div class="seg" data-seg="hour12">
+              <button data-val="0">24 小时</button>
+              <button data-val="1">12 小时</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>显示秒数</span>
+            <div class="seg" data-seg="showSeconds">
+              <button data-val="1">显示</button>
+              <button data-val="0">隐藏</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <span>主题模式</span>
+            <div class="seg" data-seg="themeMode">
+              <button data-val="manual">手动</button>
+              <button data-val="time">跟随时间</button>
+              <button data-val="system">跟随系统</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <span>白天 / 夜间划分</span>
+            <div class="seg seg-time">
+              <label>白天起 <input class="set-time" id="bgDay" type="time" value="06:00"></label>
+              <label>夜间起 <input class="set-time" id="bgNight" type="time" value="18:00"></label>
+            </div>
+          </div>
+          <p class="set-note">这套划分同时供三处使用：主题跟随时间、背景按时段切换、夜间勿扰。</p>
+        </div>
+
+        <!-- ============ 二级：screen ============ -->
+        <div class="set-page" data-page="screen">
+          <div class="set-row">
+            <span>屏幕常亮</span>
+            <div class="seg" data-seg="wakeLock">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <span>夜间勿扰（自动切深色 + 压暗）</span>
+            <div class="seg" data-seg="nightQuiet">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col">
+            <span>夜间压暗 <b data-nq-dim>25</b>%</span>
+            <input class="set-range" id="nqDim" type="range" min="0" max="70" step="5" value="25">
+          </div>
+
+          <div class="set-row">
+            <span>防烧屏位移</span>
+            <div class="seg" data-seg="burnShift">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>位移方式</span>
+            <div class="seg" data-seg="burnMode">
+              <button data-val="step">阶梯偏移</button>
+              <button data-val="drift">缓慢漂移</button>
+              <button data-val="jitter">随机抖动</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col">
+            <span>位移幅度 <b data-burn-amp>4</b> px</span>
+            <input class="set-range" id="burnAmp" type="range" min="2" max="12" step="1" value="4">
+          </div>
+          <div class="set-row">
+            <span>换位间隔</span>
+            <div class="seg" data-seg="burnMin">
+              <button data-val="1">1 分</button>
+              <button data-val="5">5 分</button>
+              <button data-val="10">10 分</button>
+              <button data-val="30">30 分</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>想看看效果</span>
+            <div class="seg"><button id="burnPreview">手动走一步</button></div>
+          </div>
+          <p class="set-note">
+            整个界面（含背景图）会在若干个位置之间极缓慢轮换，构图完全不变。<br>
+            阶梯偏移＝绕原位走一圈再回来，经典像素位移；缓慢漂移＝肉眼几乎察觉不到；
+            随机抖动＝固定种子的随机点位。<br>
+            LCD 烧屏风险低，默认关闭；OLED 屏建议开启。
+          </p>
+
+          <div class="set-sec only-native">Android 常驻</div>
+
+          <div class="set-row only-native">
+            <span>常驻模式（开机自启 + 崩溃自恢复）</span>
+            <div class="seg" data-seg="nativeAutoStart">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row only-native">
+            <span>屏幕常亮由系统接管</span>
+            <div class="seg"><button id="nativeWakeBtn">刷新状态</button></div>
+          </div>
+          <p class="set-note only-native" data-native-note></p>
+        </div>
+
+        <!-- ============ 二级：weather ============ -->
+        <div class="set-page" data-page="weather">
+
+          <div class="set-row">
+            <span>数据源</span>
+            <div class="seg" data-seg="provider">
+              <button data-val="open-meteo">Open-Meteo 免密钥</button>
+              <button data-val="qweather">和风天气 需密钥</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col only-qweather">
+            <span>API Host</span>
+            <input class="set-input" id="qwHost" placeholder="https://xxxxxxxx.re.qweatherapi.com" autocomplete="off">
+          </div>
+          <div class="set-row set-row-col only-qweather">
+            <span>API Key</span>
+            <input class="set-input" id="qwKey" type="password" placeholder="和风天气 Key（仅存本地）" autocomplete="off">
+          </div>
+
+          <div class="set-row">
+            <span>当前城市</span>
+            <span data-city-label>攀枝花</span>
+          </div>
+          <div class="chat-input" style="margin-top:12px">
+            <input id="cityInput" placeholder="搜索城市：攀枝花 / 成都 / 北京" autocomplete="off">
+            <button id="citySearch">搜索</button>
+          </div>
+          <div class="city-list" id="cityList"></div>
+
+          <div class="set-row">
+            <span>预报天数</span>
+            <div class="seg" data-seg="days">
+              <button data-val="3">3 天</button>
+              <button data-val="7">7 天</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>刷新频率</span>
+            <div class="seg" data-seg="refreshHours">
+              <button data-val="1">1 小时</button>
+              <button data-val="2">2 小时</button>
+              <button data-val="4">4 小时</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col">
+            <span>显示字段</span>
+            <div class="checks">
+              <label><input type="checkbox" data-field="feels">体感</label>
+              <label><input type="checkbox" data-field="hiLo">最高最低</label>
+              <label><input type="checkbox" data-field="humidity">湿度</label>
+              <label><input type="checkbox" data-field="wind">风力</label>
+              <label><input type="checkbox" data-field="aqi">空气</label>
+              <label><input type="checkbox" data-field="uv">紫外线</label>
+              <label><input type="checkbox" data-field="sun">日出日落</label>
+              <label><input type="checkbox" data-field="forecast">未来预报</label>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>立即操作</span>
+            <div class="seg">
+              <button id="wxRefresh">刷新天气</button>
+              <button id="wxLocate">自动定位</button>
+              <button id="wxTest">测试连接</button>
+            </div>
+          </div>
+
+          <p class="set-note" data-weather-note></p>
+
+        </div>
+
+        <!-- ============ 二级：background ============ -->
+        <div class="set-page" data-page="background">
+
+          <div class="set-row">
+            <span>背景模式</span>
+            <div class="seg" data-seg="bgMode">
+              <button data-val="off">纯色底</button>
+              <button data-val="image">图片</button>
+            </div>
+          </div>
+
+          <div class="set-row">
+            <span>添加图片</span>
+            <div class="seg"><button id="bgPick">选择图片…</button></div>
+          </div>
+          <input type="file" id="bgFile" class="file-hidden" accept="image/*" multiple>
+          <div class="set-row">
+            <span>导入画质</span>
+            <div class="seg" data-seg="bgRes">
+              <button data-val="auto">自适应屏幕</button>
+              <button data-val="hd">高清 2560</button>
+              <button data-val="full">超清 3840</button>
+            </div>
+          </div>
+          <p class="set-note">导入时只缩不放，长边上限按上面这一项决定（自适应＝按本机屏幕分辨率算），
+            转成 JPEG 后存进本地库，原图不会被改动。</p>
+
+          <div class="bg-list" id="bgList"></div>
+          <p class="set-note" data-bg-note></p>
+
+          <div class="set-row">
+            <span>轮播间隔</span>
+            <div class="seg" data-seg="bgInterval">
+              <button data-val="0">不轮播</button>
+              <button data-val="60">1 分</button>
+              <button data-val="300">5 分</button>
+              <button data-val="900">15 分</button>
+            </div>
+          </div>
+          <p class="set-note">图片按「上面外观与定时里设置的白天 / 夜间划分」自动分组切换。</p>
+
+          <div class="set-row set-row-col">
+            <span>模糊程度 <b data-bg-blur>0</b> px</span>
+            <input class="set-range" id="bgBlur" type="range" min="0" max="30" step="1" value="0">
+          </div>
+          <div class="set-row set-row-col">
+            <span>浅色淡化 <b data-bg-vl>82</b>%（越大越像纯色底）</span>
+            <input class="set-range" id="bgVeilLight" type="range" min="0" max="100" step="1" value="82">
+          </div>
+          <div class="set-row set-row-col">
+            <span>深色压暗 <b data-bg-vd>46</b>%（越大越暗）</span>
+            <input class="set-range" id="bgVeilDark" type="range" min="0" max="100" step="1" value="46">
+          </div>
+
+          <div class="set-row">
+            <span>毛玻璃（弱机建议关）</span>
+            <div class="seg" data-seg="bgFrosted">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row" style="border-bottom:0">
+            <span>清空全部背景</span>
+            <div class="seg"><button id="bgClear">清空</button></div>
+          </div>
+        </div>
+
+        <!-- ============ 二级：clock ============ -->
+        <div class="set-page" data-page="clock">
+
+          <div class="set-row">
+            <span>计时器（倒计时 / 正计时）</span>
+            <div class="seg" data-seg="timerOn">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>闹钟</span>
+            <div class="seg" data-seg="alarmOn">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>管理计时器</span>
+            <div class="seg"><button id="setOpenTimers">打开计时器</button></div>
+          </div>
+          <div class="set-row">
+            <span>管理闹钟</span>
+            <div class="seg"><button id="setOpenAlarms">打开闹钟</button></div>
+          </div>
+          <p class="set-note">关掉之后时钟下方的入口会隐藏，已经在跑的计时器也会停掉；重新打开会从原状态继续。</p>
+        </div>
+
+        <!-- ============ 二级：remind ============ -->
+        <div class="set-page" data-page="remind">
+
+          <div class="set-row">
+            <span>响铃</span>
+            <div class="seg" data-seg="rdSound">
+              <button data-val="1">开</button><button data-val="0">关</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>震动</span>
+            <div class="seg" data-seg="rdVibrate">
+              <button data-val="1">开</button><button data-val="0">关</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>系统通知</span>
+            <div class="seg" data-seg="rdNotify">
+              <button data-val="1">开</button><button data-val="0">关</button>
+            </div>
+          </div>
+          <p class="set-note" data-rd-note></p>
+
+          <div class="set-row set-row-col">
+            <span>铃声</span>
+            <div class="seg seg-wrap" data-seg="rdTone">
+              <button data-val="chime">叮咚</button>
+              <button data-val="beep">滴滴</button>
+              <button data-val="pulse">脉冲</button>
+              <button data-val="classic">经典闹铃</button>
+              <button data-val="urgent">急促</button>
+              <button data-val="custom">自定义音频</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>自定义音频</span>
+            <div class="seg">
+              <button id="rdPickAudio">选择音频…</button>
+              <button id="rdClearAudio">清除</button>
+            </div>
+          </div>
+          <input type="file" id="rdAudioFile" class="file-hidden" accept="audio/*">
+          <p class="set-note" data-rd-audio-note></p>
+
+          <div class="set-row set-row-col">
+            <span>音量 <b data-rd-vol>70</b>%</span>
+            <input class="set-range" id="rdVolume" type="range" min="0" max="100" step="5" value="70">
+          </div>
+          <div class="set-row set-row-col">
+            <span>贪睡时长 <b data-rd-snooze>5</b> 分钟</span>
+            <input class="set-range" id="rdSnooze" type="range" min="1" max="30" step="1" value="5">
+          </div>
+          <div class="set-row">
+            <span>音量渐入（免得突然吓人）</span>
+            <div class="seg" data-seg="rdFade">
+              <button data-val="1">开</button><button data-val="0">关</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>夜间时段计时器只震动（闹钟照响）</span>
+            <div class="seg" data-seg="rdQuiet">
+              <button data-val="1">开</button><button data-val="0">关</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>试听</span>
+            <div class="seg"><button id="rdTest">播放一次</button></div>
+          </div>
+          <p class="set-note">
+            内置铃声是现场合成的（不占体积）；选「自定义音频」则播放你导入的文件，
+            存在本机 IndexedDB 里，不会上传。<br>
+            系统通知在 Android 壳里通常拿不到（WebView 没有通知 UI），
+            真正兜底的是屏幕上的提醒浮层；震动靠壳的 VIBRATE 权限。
+          </p>
+        </div>
+
+        <!-- ============ 二级：ai ============ -->
+        <div class="set-page" data-page="ai">
+          <p class="set-note preset-note" data-preset-note hidden></p>
+
+          <div class="set-row">
+            <span>启用</span>
+            <div class="seg" data-seg="aiEnabled">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col">
+            <span>API 地址（填到 /v1 为止）</span>
+            <input class="set-input" id="aiBase" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+          </div>
+          <div class="set-row set-row-col">
+            <span>API Key（只存本机，不上传第三方）</span>
+            <input class="set-input" id="aiKey" type="password" placeholder="sk-…" autocomplete="off">
+          </div>
+          <div class="set-row set-row-col">
+            <span>模型名称</span>
+            <input class="set-input" id="aiModel" placeholder="deepseek-chat" autocomplete="off">
+          </div>
+          <div class="set-row">
+            <span>连接与生成</span>
+            <div class="seg">
+              <button id="aiTest">测试连接</button>
+              <button id="aiRegen">重新生成问候语</button>
+              <button id="aiClearChat">清空对话</button>
+            </div>
+          </div>
+          <p class="set-note" data-ai-note></p>
+
+          <div class="set-row">
+            <span>流式逐字输出</span>
+            <div class="seg" data-seg="aiStream">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>问候语刷新</span>
+            <div class="seg" data-seg="aiMode">
+              <button data-val="manual">手动</button>
+              <button data-val="hourly">整点</button>
+              <button data-val="interval">间隔</button>
+              <button data-val="morning">每天早晨</button>
+            </div>
+          </div>
+          <div class="set-row set-row-col">
+            <span>温度 <b data-ai-temp>1.1</b>（越大越发散）</span>
+            <input class="set-range" id="aiTemp" type="range" min="0" max="2" step="0.1" value="1.1">
+          </div>
+          <div class="set-row">
+            <span>间隔小时</span>
+            <input class="set-input set-input-sm" id="aiHours" type="number" min="1" max="24" step="1">
+          </div>
+          <div class="set-row">
+            <span>最大输出 tokens</span>
+            <input class="set-input set-input-sm" id="aiMax" type="number" min="32" max="4096" step="16">
+          </div>
+          <div class="set-row">
+            <span>对话历史保留条数</span>
+            <input class="set-input set-input-sm" id="aiHist" type="number" min="2" max="40" step="2">
+          </div>
+          <div class="set-row set-row-col">
+            <span>问候语提示词（可用 {{time}} {{date}} {{week}} {{lunar}} {{weather}} {{temp}} {{city}} {{holiday}} {{battery}}）</span>
+            <textarea class="set-input set-area" id="aiPrompt" rows="5"></textarea>
+          </div>
+          <div class="set-row">
+            <span>问候语提示词</span>
+            <div class="seg"><button id="aiPromptReset">恢复默认</button></div>
+          </div>
+
+          <div class="set-row set-row-col">
+            <span>对话提示词（同样可用 {{}} 变量）</span>
+            <textarea class="set-input set-area" id="aiChatPrompt" rows="5"></textarea>
+          </div>
+          <div class="set-row" style="border-bottom:0">
+            <span>对话提示词</span>
+            <div class="seg"><button id="aiChatPromptReset">恢复默认</button></div>
+          </div>
+
+          <div class="set-sec">人设（可选，追加在上面两段提示词之后）</div>
+
+          <div class="set-row">
+            <span>启用人设</span>
+            <div class="seg" data-seg="personaOn">
+              <button data-val="1">开启</button>
+              <button data-val="0">关闭</button>
+            </div>
+          </div>
+
+          <div class="set-row set-row-col">
+            <span>选一个人设</span>
+            <div class="persona-list" id="personaList"></div>
+          </div>
+
+          <div class="set-row set-row-col">
+            <span>人设内容（改完自动保存）</span>
+            <textarea class="set-input set-area" id="personaText" rows="9"></textarea>
+          </div>
+
+          <div class="persona-ops">
+            <input class="set-input" id="personaName" maxlength="16" autocomplete="off"
+                   placeholder="新人设的名字，如 毒舌损友 / 温柔陪聊">
+            <div class="seg">
+              <button id="personaSaveAs">另存为新人设</button>
+              <button id="personaDelete">删除这个人设</button>
+            </div>
+          </div>
+          <p class="set-note" data-persona-note></p>
+        </div>
+
+        <!-- ============ 二级：data ============ -->
+        <div class="set-page" data-page="data">
+
+          <div class="set-row">
+            <span>导出时包含 Key 与背景图</span>
+            <div class="seg" data-seg="exportFull">
+              <button data-val="1">包含</button>
+              <button data-val="0">不含</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <span>配置文件（JSON）</span>
+            <div class="seg">
+              <button id="cfgExport">导出</button>
+              <button id="cfgImportBtn">导入</button>
+            </div>
+          </div>
+          <input type="file" id="cfgFile" class="file-hidden" accept=".json,application/json">
+          <p class="set-note" data-cfg-note></p>
+
+          <p class="set-note" data-status-note></p>
+          <div class="set-row" style="border-bottom:0">
+            <span>恢复默认设置</span>
+            <div class="seg"><button id="resetAll">恢复默认</button></div>
+          </div>
+          <p class="set-note">
+            天气：默认走 Open-Meteo（免密钥、支持浏览器跨域）；<br>
+            和风天气需自行填写 API Host 与 Key，Key 只存本地不上传；<br>
+            另有背景、温度桥接、AI 对话、Kiosk 常驻待后续阶段。
+          </p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 日期详情 -->
+    <div class="modal" id="dateModal">
+      <button class="icon-btn" data-close="dateModal"
+              style="position:absolute;top:14px;right:18px" title="关闭">×</button>
+      <div class="dt-date" id="dtDate">--</div>
+      <div class="dt-sub" id="dtSub">--</div>
+      <div class="dt-tags" id="dtTags"></div>
+      <div class="dt-hr"></div>
+      <div class="dt-label">当日事件</div>
+      <div class="dt-events" id="dtEvents"></div>
+      <div class="dt-hr"></div>
+      <div class="chat-input">
+        <input id="evInput" type="text" placeholder="添加事件，回车保存（按日期存本地）" autocomplete="off">
+        <button id="evAdd">添加</button>
+      </div>
+    </div>
+
+    <!-- 计时器详情 -->
+    <div class="modal modal-tool" id="timerModal">
+      <button class="icon-btn" data-close="timerModal"
+              style="position:absolute;top:14px;right:18px" title="关闭">×</button>
+      <div class="tm-head">
+        <div class="tm-title">计时器</div>
+        <div class="seg" data-seg="timerKind">
+          <button data-val="down">倒计时</button>
+          <button data-val="up">正计时</button>
+        </div>
+      </div>
+      <div class="tm-running" id="tmRunning"></div>
+      <div class="dt-hr"></div>
+      <div class="dt-label" id="tmPresetLabel">常用计时器</div>
+      <div class="tm-presets" id="tmPresets"></div>
+      <div class="tm-add">
+        <input id="tmCustom" placeholder="自定义时长：90 / 1:30 / 1:02:30 / 5分" autocomplete="off">
+        <button id="tmStartNow">开始</button>
+        <button id="tmSavePreset">存为常用</button>
+      </div>
+      <div class="tm-foot" id="tmFoot"></div>
+    </div>
+
+    <!-- 闹钟详情 -->
+    <div class="modal modal-tool" id="alarmModal">
+      <button class="icon-btn" data-close="alarmModal"
+              style="position:absolute;top:14px;right:18px" title="关闭">×</button>
+      <div class="tm-head">
+        <div class="tm-title">闹钟</div>
+      </div>
+      <div class="al-list" id="alList"></div>
+      <p class="set-note" id="alNote" hidden></p>
+      <div class="dt-hr"></div>
+      <div class="al-edit" id="alEdit">
+        <div class="al-edit-title" id="alEditTitle">新建闹钟</div>
+        <div class="al-time-input">
+          <input id="alTimeH" class="al-num" type="number" min="0" max="23" step="1" inputmode="numeric" value="07">
+          <span class="al-colon">:</span>
+          <input id="alTimeM" class="al-num" type="number" min="0" max="59" step="1" inputmode="numeric" value="30">
+        </div>
+        <div class="al-quick" id="alQuick"></div>
+        <div class="al-days" id="alDays"></div>
+        <input id="alLabel" class="set-input" placeholder="标签（可选，如 起床 / 吃药）"
+               maxlength="16" autocomplete="off">
+        <div class="seg al-edit-btns">
+          <button id="alSave">保存</button>
+          <button id="alCancel">取消</button>
+        </div>
+      </div>
+      <div class="seg al-add-row"><button id="alAdd">＋ 添加闹钟</button></div>
+    </div>
+
+    <!-- 提醒浮层：计时器到点 / 闹钟响铃 都用它 -->
+    <div class="remind" id="remindModal" aria-hidden="true">
+      <div class="rd-box">
+        <div class="rd-kind" id="rdKind">提醒</div>
+        <div class="rd-time" id="rdTime">--:--</div>
+        <div class="rd-label" id="rdLabel"></div>
+        <div class="rd-note" id="rdNote" hidden></div>
+        <div class="rd-actions">
+          <button class="rd-snooze" id="rdSnoozeBtn">贪睡 5 分钟</button>
+          <button class="rd-stop" id="rdStopBtn">停止</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 浮动控制区 -->
+    <div class="controls" id="controls">
+      <button data-act="theme" title="切换主题（D）">
+        <svg id="icoTheme" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.4"/>
+          <path d="M12 2.4v2.6M12 19v2.6M2.4 12h2.6M19 12h2.6M5.2 5.2l1.9 1.9M16.9 16.9l1.9 1.9M18.8 5.2l-1.9 1.9M7.1 16.9l-1.9 1.9"/>
+        </svg>
+      </button>
+      <button data-act="settings" title="设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.6" stroke-linecap="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 3 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 10 4.1a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1A1.7 1.7 0 0 0 21 11a2 2 0 1 1 0 4z"/>
+        </svg>
+      </button>
+      <button data-act="fullscreen" title="全屏（F）">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round">
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+        </svg>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script src="assets/js/builtin-bg.js"></script>
+<script src="assets/js/builtin-personas.js"></script>
+<script src="assets/js/lunar.js"></script>
+<script src="assets/js/weather.js"></script>
+<script src="assets/js/background.js"></script>
+<script src="assets/js/native.js"></script>
+<script src="assets/js/remind.js"></script>
+<script src="assets/js/timers.js"></script>
+<script src="assets/js/alarms.js"></script>
+<script src="assets/js/ai.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8">
+<title>鲸鲸仪表板 · 功能总览</title>
+<style>
+/* ============================================================================
+ * 功能海报：把整个项目的功能摊在一张图上，用来分享。
+ * 用 1440×1920（3:4）—— 手机上竖着看正好，微信/朋友圈不会被裁。
+ * 风格沿用「浅色极简编辑网格」：暖米白底、近黑字、1px 细线、零装饰。
+ * 深色版：给 <html> 加 data-theme="dark"（截图脚本会切）。
+ * ==========================================================================*/
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+:root {
+  --bg: #F4F2EC;
+  --ink: #20201D;
+  --ink-2: #55534D;
+  --muted: #8C8A83;
+  --faint: #B4B1A8;
+  --line: #DCDAD1;
+  --festival: #A4473B;
+  --term: #4C6B57;
+  --font-cn: "Source Han Sans SC", "Noto Sans SC", "HarmonyOS Sans SC",
+             "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --font-num: "Inter", "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+}
+[data-theme="dark"] {
+  --bg: #121417;
+  --ink: #E8EAED;
+  --ink-2: #C4C8CD;
+  --muted: #9AA0A6;
+  --faint: #6B7076;
+  --line: #262A30;
+  --festival: #F0A52B;
+  --term: #F0A52B;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-cn);
+  -webkit-font-smoothing: antialiased;
+}
+.poster {
+  width: 1440px; height: 1920px;
+  padding: 72px 96px 0;
+  display: flex; flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+/* --- 页眉 --- */
+.head { border-bottom: 2px solid var(--ink); padding-bottom: 24px; }
+.head-row { display: flex; align-items: baseline; justify-content: space-between; }
+.title { font-size: 82px; font-weight: 200; letter-spacing: -.03em; line-height: 1; font-family: var(--font-num); }
+.title cn { font-family: var(--font-cn); font-weight: 300; }
+.sub { margin-top: 14px; font-size: 27px; color: var(--ink-2); letter-spacing: .02em; }
+.ver { font-size: 24px; color: var(--muted); font-family: var(--font-num); letter-spacing: .06em; }
+
+/* --- 功能网格 --- */
+.grid {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  margin-top: 8px;
+}
+.cell {
+  padding: 22px 44px 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+.cell:nth-child(odd)  { padding-right: 44px; border-right: 1px solid var(--line); }
+.cell:nth-child(even) { padding-left: 44px; }
+.cell:nth-last-child(-n+2) { border-bottom: 0; }
+
+.cell-head { display: flex; align-items: baseline; gap: 14px; }
+.no { font-family: var(--font-num); font-size: 22px; color: var(--faint); letter-spacing: .06em; }
+.cell-title { font-size: 31px; font-weight: 500; letter-spacing: .02em; }
+.cell-en { font-size: 18px; color: var(--faint); font-family: var(--font-num); letter-spacing: .14em; margin-top: 6px; }
+
+ul { list-style: none; margin: 12px 0 0; padding: 0; }
+li {
+  position: relative; padding-left: 20px;
+  font-size: 22px; line-height: 1.5; color: var(--ink-2);
+  margin-bottom: 4px;
+}
+li::before {
+  content: ""; position: absolute; left: 0; top: .62em;
+  width: 8px; height: 1px; background: var(--faint);
+}
+li b { color: var(--ink); font-weight: 500; }
+li .hl { color: var(--festival); }
+
+/* --- 页脚 --- */
+.foot {
+  flex: 0 0 auto;
+  border-top: 2px solid var(--ink);
+  padding: 20px 0 30px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 22px; color: var(--muted);
+}
+.foot .tags { display: flex; gap: 26px; font-family: var(--font-num); letter-spacing: .04em; }
+.foot .tags span { color: var(--ink-2); }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <div class="head">
+    <div class="head-row">
+      <div class="title"><cn>鲸鲸仪表板</cn></div>
+      <div class="ver">v1.9.2</div>
+    </div>
+    <div class="sub">给一台闲置平板做的常驻信息面板 · 打开就是全部，不用点任何东西</div>
+  </div>
+
+  <div class="grid">
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">01</span><span class="cell-title">时钟与日历</span></div>
+      <div class="cell-en">CLOCK &amp; CALENDAR</div>
+      <ul>
+        <li>秒级大时钟 · 12/24 小时制 · 可隐藏秒数</li>
+        <li>公历 + 星期 + <b>农历</b>，离线算到 2100 年</li>
+        <li>月历固定六行不跳动，上下月补齐弱化</li>
+        <li>格内小字按 <b>节日 &gt; 节气 &gt; 农历</b> 优先级分色</li>
+        <li>假期标记、调休显示「班」、今日高亮</li>
+        <li>点任意日期记日程，按日期存在本机</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">02</span><span class="cell-title">天气</span></div>
+      <div class="cell-en">WEATHER</div>
+      <ul>
+        <li>双数据源：<b>Open-Meteo 免密钥</b> / 和风天气</li>
+        <li>搜索城市或自动定位，Key 只存本机</li>
+        <li>体感 / 最高最低 / 湿度 / 风力 / 空气 / 紫外线 / 日出日落 / 预报，<b>8 项逐项勾选</b></li>
+        <li>3 天或 7 天预报 · 1/2/4 小时自动刷新</li>
+        <li>拿到数据前先用缓存兜底，不会开天窗</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">03</span><span class="cell-title">计时器与闹钟</span></div>
+      <div class="cell-en">TIMER &amp; ALARM</div>
+      <ul>
+        <li><b>倒计时 + 正计时</b>，多个可以同时跑</li>
+        <li>常用时长一点就开始，能加能删</li>
+        <li>正计时单独显示在主屏右侧，一眼看到读秒</li>
+        <li>闹钟支持一次 / 每天 / 工作日 / 周末 / 自选星期</li>
+        <li>存的是绝对时间戳 —— 刷新、崩溃恢复后依然准</li>
+        <li>关掉页面期间到点的提醒，回来会补上</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">04</span><span class="cell-title">提醒方式</span></div>
+      <div class="cell-en">ALERT</div>
+      <ul>
+        <li>响铃 / 震动 / 系统通知，三个开关各自独立</li>
+        <li>内置 5 种铃声<b>现场合成</b>，不占体积</li>
+        <li>也能导入自己的音频文件，存在本机不上传</li>
+        <li><b>音量渐入</b>，不会突然吓人 · 可贪睡</li>
+        <li>多路提醒排队，不会互相顶掉</li>
+        <li>夜间时段可设成计时器只震动、闹钟照响</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">05</span><span class="cell-title">AI 问候与人设</span></div>
+      <div class="cell-en">AI GREETING</div>
+      <ul>
+        <li>接任意 <b>OpenAI 兼容接口</b>（DeepSeek / 智谱 / 本地 Ollama…）</li>
+        <li>流式逐字输出，问候语按整点或间隔自动换</li>
+        <li>每次请求都带上时间、农历、天气、电量等实时上下文</li>
+        <li>问候语提示词与对话提示词<b>分开可编辑</b></li>
+        <li><b>人设库</b>：可存多套语气，一键切换（内置「大肥鱼」）</li>
+        <li>点问候语直接展开对话抽屉</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">06</span><span class="cell-title">背景与外观</span></div>
+      <div class="cell-en">LOOK &amp; FEEL</div>
+      <ul>
+        <li>图片背景，容量约 <b>48 MB</b>，导入只缩不放</li>
+        <li>按白天 / 夜间自动分组，到点自己换，也能轮播</li>
+        <li>模糊、淡化、压暗三档可调，保证文字永远看得清</li>
+        <li>毛玻璃效果（弱机可关）· 内置一张夏日壁纸</li>
+        <li><b>双主题</b>：浅色极简编辑网格 / 深色精密数据看板</li>
+        <li>主题可跟随时间或跟随系统自动切</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">07</span><span class="cell-title">适配与常驻</span></div>
+      <div class="cell-en">ADAPT &amp; KIOSK</div>
+      <ul>
+        <li>任何<b>横屏 / 方屏</b>都铺满，4:3 到 21:9 都不留边</li>
+        <li>流体设计单位，元素比例在任何分辨率都不变形</li>
+        <li>Android 壳：<b>开机自启 + 崩溃自恢复</b>，四步逐级兜底</li>
+        <li>防烧屏位移（阶梯 / 漂移 / 抖动），OLED 友好</li>
+        <li>夜间勿扰：自动切深色并压暗</li>
+        <li>配置一键导出导入，单文件 HTML 可直接发给别人</li>
+      </ul>
+    </div>
+
+    <div class="cell">
+      <div class="cell-head"><span class="no">08</span><span class="cell-title">隐私与数据</span></div>
+      <div class="cell-en">PRIVACY</div>
+      <ul>
+        <li><b>全部数据只存在本机</b>，不上传任何第三方</li>
+        <li>API Key、背景图、日程、计时器、闹钟都在本地</li>
+        <li>背景图存 IndexedDB，老设备自动降级到 localStorage</li>
+        <li>导出配置时可选择<b>是否包含 Key 与图片</b></li>
+        <li>零第三方依赖，零外链字体，断网也能跑</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div class="foot">
+    <div class="tags">
+      <span>双主题</span><span>任意横屏设备</span><span>离线可用</span><span>零依赖</span>
+    </div>
+    <div>给闲置平板找个活儿干</div>
+  </div>
+
+</div>
+</body>
+</html>

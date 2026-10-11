@@ -1,0 +1,13 @@
+{
+  "_说明": "分享版内置的默认 API 预设。这个文件不会被 index.html 引用，只由 工具/pack.js 在打包时读入并写进单文件产物。删掉本文件（或清空 ai.key）即可打出一个不含任何 Key 的分享版。",
+  "ai": {
+    "enabled": 1,
+    "baseUrl": "https://apihub.agnes-ai.com/v1",
+    "key": "sk-6SW6Pv0q4I7mmMXFhwMHIEDquzd9xDPPbaA273MpvVxTUSX6",
+    "model": "agnes-3.0-flash",
+    "greetMode": "interval",
+    "greetHours": 8,
+    "maxTokens": 240,
+    "temperature": 1.1
+  }
+}

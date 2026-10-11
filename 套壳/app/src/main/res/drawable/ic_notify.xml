@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 常驻通知的小图标。
+     通知栏会把 smallIcon 渲染成**单色剪影**（只取 alpha 通道），
+     所以这里不能用鲸鲸那张彩色图，否则只会变成一个白团。
+     改用一个纯白的表盘圈 + 指针，剪影下依然认得出。
+     坐标由原来的 108 视口等比缩放到 24（×0.2222）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- 表盘外圈（evenOdd 挖空中间，剪影下就是个圆环） -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M12,4.444 A7.556,7.556 0 1,1 11.978,4.444 Z M12,6.889 A5.111,5.111 0 1,0 12.022,6.889 Z" />
+
+    <!-- 时针 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.444,7.556 L12.556,7.556 L12.556,12.444 L11.444,12.444 Z" />
+
+    <!-- 分针 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.444,11.444 L16.444,11.444 L16.444,12.556 L11.444,12.556 Z" />
+
+    <!-- 中心点 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,11 A1,1 0 1,1 11.978,11 Z" />
+</vector>
